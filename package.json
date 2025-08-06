@@ -1,0 +1,17 @@
+{
+  "name": "realtime",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@polymarket/clob-client": "^4.20.0",
+    "airtable": "^0.12.2",
+    "isomorphic-ws": "^5.0.0",
+    "tslib": "^2.8.1"
+  }
+}

@@ -69,9 +69,9 @@ const recentIds: string[] = [];
 const onMessage = async (_client: any, message: Message): Promise<void> => {
 
     if (message.payload.slug.includes("up-or-down")) {
-        console.log("[TITLE]", message.payload.title);
+        //console.log("[TITLE]", message.payload.title);
         const localTime = getFormattedLocalTime();
-        console.log("[LOCAL]", localTime);
+        //console.log("[LOCAL]", localTime);
         // Compare time in title to local ET time
         const titleParts = parseTitleTime(message.payload.title);
         const etParts = getCurrentETParts();
@@ -88,8 +88,8 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                 const outcome = message.payload.outcome;
                 const url = `https://polymarket.com/event/${event}`;
 
-                console.log("[MATCH] Local ET time matches time in title!");
-                console.log("[MESSAGE]",outcome, price);
+                //console.log("[MATCH] Local ET time matches time in title!");
+                //console.log("[MESSAGE]",outcome, price);
                 if (message.payload.price > 0.9) {
                     // Check in-memory array for duplicate
                     if (!recentIds.includes(id)) {
@@ -111,24 +111,24 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                           }
                         ], function(err, records) {
                           if (err) {
-                            console.error('[Airtable] Error:', err);
+                            //console.error('[Airtable] Error:', err);
                             return;
                           }
                           if (records) {
                             records.forEach(function(record) {
-                              console.log('[Airtable] Created record:', record.getId());
+                              //console.log('[Airtable] Created record:', record.getId());
                             });
                           }
                         });
                     } else {
-                        console.log(`[Airtable] Skipped duplicate id: ${id}`);
+                        //console.log(`[Airtable] Skipped duplicate id: ${id}`);
                     }
                 }
             } else {
-                console.log("[NO MATCH] Local ET time does not match time in title.");
+                //console.log("[NO MATCH] Local ET time does not match time in title.");
             }
         } else {
-            console.log("[WARN] Could not parse time from title.");
+            //console.log("[WARN] Could not parse time from title.");
         }
     }
 };

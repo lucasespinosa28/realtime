@@ -116,7 +116,7 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                           }
                           if (records) {
                             records.forEach(function(record) {
-                              //console.log('[Airtable] Created record:', record.getId());
+                              console.log('[Airtable] Created record:', record.getId());
                             });
                           }
                         });

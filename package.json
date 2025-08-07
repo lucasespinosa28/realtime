@@ -1,7 +1,15 @@
 {
   "name": "realtime",
-  "module": "index.ts",
+  "module": "app.ts",
   "type": "module",
+  "scripts": {
+    "start": "bun --expose-gc run app.ts",
+    "start:memory": "bun --expose-gc run app.ts",
+    "update-winners": "bun run scripts/update-winners.ts",
+    "dev": "bun --watch app.ts",
+    "build": "bun build app.ts --outdir ./dist",
+    "test": "bun test"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
@@ -9,6 +17,7 @@
     "typescript": "^5.0.0"
   },
   "dependencies": {
+    "@logtape/logtape": "^1.0.4",
     "@polymarket/clob-client": "^4.20.0",
     "airtable": "^0.12.2",
     "isomorphic-ws": "^5.0.0",

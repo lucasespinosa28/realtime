@@ -1,6 +1,7 @@
 import WebSocket from "isomorphic-ws";
 import type { SubscriptionMessage, Message } from "./model";
 import { ConnectionStatus } from "./model";
+import { websocketLogger } from "../../utils/logger";
 
 const DEFAULT_HOST = "wss://ws-live-data.polymarket.com";
 const DEFAULT_PING_INTERVAL = 5000;
@@ -70,6 +71,15 @@ export class RealTimeDataClient {
     /** WebSocket instance */
     private ws!: WebSocket;
 
+    /** Ping timeout reference for cleanup */
+    private pingTimeout?: NodeJS.Timeout;
+
+    /** Reconnection attempt counter */
+    private reconnectAttempts: number = 0;
+
+    /** Maximum reconnection attempts */
+    private readonly maxReconnectAttempts: number = 10;
+
     /**
      * Constructs a new RealTimeDataClient instance.
      * @param args Configuration options for the client.
@@ -87,6 +97,11 @@ export class RealTimeDataClient {
      * Establishes a WebSocket connection to the server.
      */
     public connect() {
+        // Clean up existing connection if any
+        if (this.ws) {
+            this.cleanup();
+        }
+
         this.notifyStatusChange(ConnectionStatus.CONNECTING);
         this.ws = new WebSocket(this.host);
         if (this.ws) {
@@ -100,9 +115,30 @@ export class RealTimeDataClient {
     }
 
     /**
+     * Clean up WebSocket connection and timers
+     */
+    private cleanup() {
+        if (this.pingTimeout) {
+            clearTimeout(this.pingTimeout);
+            this.pingTimeout = undefined;
+        }
+        if (this.ws) {
+            this.ws.onopen = null;
+            this.ws.onmessage = null;
+            this.ws.onclose = null;
+            this.ws.onerror = null;
+            this.ws.pong = null;
+            if (this.ws.readyState === WebSocket.OPEN) {
+                this.ws.close();
+            }
+        }
+    }
+
+    /**
      * Handles WebSocket 'open' event. Executes the `onConnect` callback and starts pinging.
      */
     private onOpen = async () => {
+        this.reconnectAttempts = 0; // Reset reconnection counter
         this.ping();
         this.notifyStatusChange(ConnectionStatus.CONNECTED);
         if (this.onConnect) {
@@ -114,7 +150,7 @@ export class RealTimeDataClient {
      * Handles WebSocket 'pong' event. Continues the ping cycle.
      */
     private onPong = async () => {
-        delay(this.pingInterval).then(() => this.ping());
+        this.pingTimeout = setTimeout(() => this.ping(), this.pingInterval);
     };
 
     /**
@@ -122,9 +158,14 @@ export class RealTimeDataClient {
      * @param err Error object describing the issue.
      */
     private onError = async (err: ErrorEvent) => {
-        console.error("error", err);
-        if (this.autoReconnect) {
-            this.connect();
+        websocketLogger.error("WebSocket error: {error}", { error: err.message || err.type });
+        if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000); // Exponential backoff, max 30s
+            setTimeout(() => this.connect(), delay);
+        } else if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            websocketLogger.error("Max reconnection attempts reached. Stopping reconnection.");
+            this.autoReconnect = false;
         }
     };
 
@@ -134,10 +175,17 @@ export class RealTimeDataClient {
      * @param reason Buffer containing the reason for closure.
      */
     private onClose = async (message: CloseEvent) => {
-        console.error("disconnected", "code", message.code, "reason", message.reason);
+        websocketLogger.warning("WebSocket disconnected - code: {code} reason: {reason}", {
+            code: message.code,
+            reason: message.reason
+        });
         this.notifyStatusChange(ConnectionStatus.DISCONNECTED);
-        if (this.autoReconnect) {
-            this.connect();
+        this.cleanup();
+        
+        if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000); // Exponential backoff
+            setTimeout(() => this.connect(), delay);
         }
     };
 
@@ -146,12 +194,14 @@ export class RealTimeDataClient {
      */
     private ping = async () => {
         if (this.ws.readyState !== WebSocket.OPEN) {
-            return console.warn("Socket not open. Ready state is:", this.ws.readyState);
+            return websocketLogger.warning("Socket not open. Ready state is: {readyState}", { 
+                readyState: this.ws.readyState 
+            });
         }
 
         this.ws.send("ping", (err: Error | undefined) => {
             if (err) {
-                console.error("ping error", err);
+                websocketLogger.error("Ping error: {error}", { error: err.message });
             }
         });
     };
@@ -161,13 +211,18 @@ export class RealTimeDataClient {
      * @param event Raw WebSocket message data.
      */
     private onMessage = (event: MessageEvent): void => {
-        if (typeof event.data === "string" && event.data.length > 0) {
-            if (this.onCustomMessage && event.data.includes("payload")) {
-                const message = JSON.parse(event.data);
-                this.onCustomMessage(this, message as Message);
-            } else {
-                console.log("onMessage error", { event });
+        try {
+            if (typeof event.data === "string" && event.data.length > 0) {
+                if (this.onCustomMessage && event.data.includes("payload")) {
+                    const message = JSON.parse(event.data);
+                    this.onCustomMessage(this, message as Message);
+                }
+                // Remove excessive logging to save memory
             }
+        } catch (error) {
+            websocketLogger.error("Error parsing message: {error}", { 
+                error: error instanceof Error ? error.message : String(error) 
+            });
         }
     };
 
@@ -176,7 +231,7 @@ export class RealTimeDataClient {
      */
     public disconnect() {
         this.autoReconnect = false;
-        this.ws.close();
+        this.cleanup();
     }
 
     /**
@@ -185,11 +240,13 @@ export class RealTimeDataClient {
      */
     public subscribe(msg: SubscriptionMessage) {
         if (this.ws.readyState !== WebSocket.OPEN) {
-            return console.warn("Socket not open. Ready state is:", this.ws.readyState);
+            return websocketLogger.warning("Socket not open. Ready state is: {readyState}", { 
+                readyState: this.ws.readyState 
+            });
         }
         this.ws.send(JSON.stringify({ action: "subscribe", ...msg }), (err?: Error) => {
             if (err) {
-                console.error("subscribe error", err);
+                websocketLogger.error("Subscribe error: {error}", { error: err.message });
                 this.ws.close();
             }
         });
@@ -201,12 +258,14 @@ export class RealTimeDataClient {
      */
     public unsubscribe(msg: SubscriptionMessage) {
         if (this.ws.readyState !== WebSocket.OPEN) {
-            return console.warn("Socket not open. Ready state is:", this.ws.readyState);
+            return websocketLogger.warning("Socket not open. Ready state is: {readyState}", { 
+                readyState: this.ws.readyState 
+            });
         }
-        console.log("unsubscribing", { msg });
+        websocketLogger.debug("Unsubscribing from: {topic}", { topic: msg.subscriptions[0]?.topic });
         this.ws.send(JSON.stringify({ action: "unsubscribe", ...msg }), (err?: Error) => {
             if (err) {
-                console.error("unsubscribe error", err);
+                websocketLogger.error("Unsubscribe error: {error}", { error: err.message });
                 this.ws.close();
             }
         });

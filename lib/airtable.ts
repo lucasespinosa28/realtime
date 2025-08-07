@@ -124,7 +124,7 @@ export function saveOutcomeCount(table: string, eventId: string, outcome: string
   return new Promise((resolve, reject) => {
     // First, find the existing record
     base(table).select({
-      filterByFormula: `{id} = '${eventId}'`,
+      filterByFormula: `{eventId} = '${eventId}'`,
       maxRecords: 1
     }).firstPage(function(err, records) {
       if (err) {

@@ -1,6 +1,6 @@
 import { RealTimeDataClient } from "./lib/websocket/client";
 import type { Message } from "./lib/websocket/model";
-import { createRecord, saveOutcomeCount } from "./lib/airtable";
+import { createRecord } from "./lib/airtable";
 import { isTimeMatch, extractCoinFromEvent } from "./utils/time";
 import { setupMemoryMonitoring, setupGracefulShutdown } from "./utils/memory";
 import { configureLogging, appLogger } from "./utils/logger";
@@ -83,32 +83,16 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                 winner: "Undefined"
             };
 
-            // Save to Airtable Table 2 (this will set initial Up=1 or Down=1)
+            // Save to Airtable Table 1
             try {
-                const recordId = await createRecord("Table 2", record);
+                const recordId = await createRecord("Table 1", record);
                 appLogger.info("Created initial record with counts: {recordId}", { recordId });
             } catch (error) {
                 appLogger.error("Failed to create initial record: {error}", {
                     error: error instanceof Error ? error.message : String(error)
                 });
             }
-        } else if (recentIds.has(id) && message.payload.price > 0.9) {
-            // If we already have a record for this event, just update the counts
-            if (outcome === 'Up' || outcome === 'Down') {
-                try {
-                    const outcomeRecordId = await saveOutcomeCount("Table 2", id, outcome);
-                    appLogger.info("Updated outcome count: {outcome} for event: {event}", { 
-                        outcome,
-                        event: eventSlug,
-                        recordId: outcomeRecordId 
-                    });
-                } catch (error) {
-                    appLogger.error("Failed to update outcome count: {error}", {
-                        error: error instanceof Error ? error.message : String(error)
-                    });
-                }
-            }
-        }
+    }
     } catch (error) {
         appLogger.error("Error processing message: {error}", {
             error: error instanceof Error ? error.message : String(error)

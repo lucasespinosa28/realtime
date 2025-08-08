@@ -12,7 +12,7 @@ async function updateAllWinners(table: string = 'Table 1') {
   scriptsLogger.info("Starting winner update process...");
   
   try {
-    const records = await getAllRecords("table 1");
+    const records = await getAllRecords(table);
     scriptsLogger.info("Found {count} records to check", { count: records.length });
     
     let updated = 0;

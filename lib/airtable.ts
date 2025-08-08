@@ -32,10 +32,6 @@ export interface TradeRecord {
  */
 export function createRecord(table: string, record: TradeRecord): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Set initial counts based on outcome
-    const upCount = record.outcome === 'Up' ? 1 : 0;
-    const downCount = record.outcome === 'Down' ? 1 : 0;
-
     base(table).create([
       {
         fields: {
@@ -46,8 +42,6 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
           outcome: record.outcome,
           url: record.url,
           winner: record.winner || "undefined",
-          Up: upCount,
-          Down: downCount
         }
       }
     ], function(err, records) {

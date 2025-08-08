@@ -38,12 +38,10 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
             global.gc();
         }
     }
-    console.log(message)
     // Early return if not relevant message type
     if (!message?.payload?.slug?.includes("up-or-down")) {
         return;
     }
-    // console.log("Received message from", message);
     try {
         // Check if time matches current ET time
         if (!isTimeMatch(message.payload.title)) {

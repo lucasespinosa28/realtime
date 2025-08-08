@@ -93,9 +93,9 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
             }
 
             try{
-                if (eventSlug.includes("ethereum-up-or-down")) {
+                // if (eventSlug.includes("ethereum-up-or-down")) {
                     await placeOrder(tokenId, message.payload.price);
-                }
+                // }
             } catch (error) {
                 appLogger.error("Error placing order: {error}", {
                     error: error instanceof Error ? error.message : String(error)

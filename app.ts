@@ -14,7 +14,8 @@ setupMemoryMonitoring(60000, 100); // Monitor every minute, GC at 100MB
 setupGracefulShutdown();
 
 // Use Set for O(1) lookups and automatic deduplication
-const recentIds = new Set<string>(); // For tracking which events we've created initial records for
+const recentIds08 = new Set<string>(); // For tracking events at price > 0.8
+const recentIds09 = new Set<string>(); // For tracking events at price > 0.9
 const MAX_CACHE_SIZE = 32; // Reduced for lower memory usage
 
 // Periodic cleanup without message throttling
@@ -29,8 +30,11 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
         lastCleanup = now;
 
         // Clean up cache if it gets too large
-        if (recentIds.size > MAX_CACHE_SIZE) {
-            recentIds.clear();
+        if (recentIds08.size > MAX_CACHE_SIZE) {
+            recentIds08.clear();
+        }
+        if (recentIds09.size > MAX_CACHE_SIZE) {
+            recentIds09.clear();
         }
 
         // Force garbage collection if available
@@ -59,18 +63,18 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
         const tokenId = message.payload.asset;
         
         // Check if this is the first time we see this event at price > 0.8
-        if (message.payload.price > 0.8 && !recentIds.has(id)) {
-            // Maintain max cache size for recentIds
-            if (recentIds.size >= MAX_CACHE_SIZE) {
+        if (message.payload.price > 0.8 && !recentIds08.has(id)) {
+            // Maintain max cache size for recentIds08
+            if (recentIds08.size >= MAX_CACHE_SIZE) {
                 // Clear half the cache to prevent constant clearing
-                const idsArray = Array.from(recentIds);
-                recentIds.clear();
+                const idsArray = Array.from(recentIds08);
+                recentIds08.clear();
                 // Keep the second half
                 for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
-                    recentIds.add(idsArray[i]);
+                    recentIds08.add(idsArray[i]);
                 }
             }
-            recentIds.add(id);
+            recentIds08.add(id);
 
             // Prepare data for Airtable (initial record with Up/Down counts)
             const record = {
@@ -95,18 +99,18 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
         }
 
         // Check if this is the first time we see this event at price > 0.9
-        if (message.payload.price > 0.9 && !recentIds.has(id)) {
-            // Maintain max cache size for recentIds
-            if (recentIds.size >= MAX_CACHE_SIZE) {
+        if (message.payload.price > 0.9 && !recentIds09.has(id)) {
+            // Maintain max cache size for recentIds09
+            if (recentIds09.size >= MAX_CACHE_SIZE) {
                 // Clear half the cache to prevent constant clearing
-                const idsArray = Array.from(recentIds);
-                recentIds.clear();
+                const idsArray = Array.from(recentIds09);
+                recentIds09.clear();
                 // Keep the second half
                 for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
-                    recentIds.add(idsArray[i]);
+                    recentIds09.add(idsArray[i]);
                 }
             }
-            recentIds.add(id);
+            recentIds09.add(id);
 
             // Prepare data for Airtable (initial record with Up/Down counts)
             const record = {

@@ -4,6 +4,7 @@ import { createRecord } from "./lib/airtable";
 import { isTimeMatch, extractCoinFromEvent } from "./utils/time";
 import { setupMemoryMonitoring, setupGracefulShutdown } from "./utils/memory";
 import { configureLogging, appLogger } from "./utils/logger";
+import { placeOrder } from "./lib/polymarket";
 
 // Setup logging first
 await configureLogging();
@@ -37,7 +38,7 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
             global.gc();
         }
     }
-
+    console.log(message)
     // Early return if not relevant message type
     if (!message?.payload?.slug?.includes("up-or-down")) {
         return;
@@ -53,11 +54,11 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
         //     price: message.payload.price,
         //     outcome: message.payload.outcome
         // });
-        
+
         const id = message.payload.conditionId;
         const eventSlug = message.payload.eventSlug;
         const outcome = message.payload.outcome;
-        
+        const tokenId = message.payload.asset;
         // Check if this is the first time we see this event at price > 0.9
         if (message.payload.price > 0.9 && !recentIds.has(id)) {
             // Maintain max cache size for recentIds
@@ -92,7 +93,19 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                     error: error instanceof Error ? error.message : String(error)
                 });
             }
-    }
+
+            try{
+                if (eventSlug.includes("ethereum-up-or-down")) {
+                    await placeOrder(tokenId, message.payload.price);
+                }
+            } catch (error) {
+                appLogger.error("Error placing order: {error}", {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+
+
+        }
     } catch (error) {
         appLogger.error("Error processing message: {error}", {
             error: error instanceof Error ? error.message : String(error)

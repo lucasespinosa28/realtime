@@ -27,6 +27,10 @@ export interface TradeRecord {
   winner: string;
 }
 
+export interface TradeRecordWithId extends TradeRecord {
+  airtableId: string;
+}
+
 /**
  * Create a new record in Airtable
  */
@@ -44,7 +48,7 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
           winner: record.winner || "undefined",
         }
       }
-    ], function(err, records) {
+    ], function (err, records) {
       if (err) {
         reject(new Error(err.message || String(err)));
         return;
@@ -61,7 +65,7 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
 /**
  * Update winner for a record
  */
-export function updateWinner(table:string, airtableRecordId: string, winner: string): Promise<void> {
+export function updateWinner(table: string, airtableRecordId: string, winner: string): Promise<void> {
   return new Promise((resolve, reject) => {
     base(table).update([
       {
@@ -83,22 +87,19 @@ export function updateWinner(table:string, airtableRecordId: string, winner: str
 /**
  * Get all records from Airtable
  */
-export function getAllRecords(table:string): Promise<Array<{airtableId: string, conditionId: string}>> {
+export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> {
   return new Promise((resolve, reject) => {
-    const records: Array<{airtableId: string, conditionId: string}> = [];
+    const records: Array<any> = [];
 
     base(table).select({
       maxRecords: 1000,
       view: "Grid view"
     }).eachPage(function page(pageRecords, fetchNextPage) {
       pageRecords.forEach(function (record) {
-        const conditionId = record.get('id');
-        if (typeof conditionId === 'string') {
-          records.push({
-            airtableId: record.id,
-            conditionId: conditionId
-          });
-        }
+        records.push({
+          airtableId: record.id,
+          ...record.fields
+        });
       });
       fetchNextPage();
     }, function done(err) {
@@ -120,7 +121,7 @@ export function saveOutcomeCount(table: string, eventId: string, outcome: string
     base(table).select({
       filterByFormula: `{eventId} = '${eventId}'`,
       maxRecords: 1
-    }).firstPage(function(err, records) {
+    }).firstPage(function (err, records) {
       if (err) {
         reject(new Error(err.message || String(err)));
         return;
@@ -131,7 +132,7 @@ export function saveOutcomeCount(table: string, eventId: string, outcome: string
         const record = records[0];
         const currentUp = (record.get('Up') as number) || 0;
         const currentDown = (record.get('Down') as number) || 0;
-        
+
         const newUp = outcome === 'Up' ? currentUp + 1 : currentUp;
         const newDown = outcome === 'Down' ? currentDown + 1 : currentDown;
 
@@ -143,7 +144,7 @@ export function saveOutcomeCount(table: string, eventId: string, outcome: string
               Down: newDown
             }
           }
-        ], function(err, updatedRecords) {
+        ], function (err, updatedRecords) {
           if (err) {
             reject(new Error(err.message || String(err)));
             return;

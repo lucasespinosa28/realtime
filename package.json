@@ -21,6 +21,7 @@
     "@polymarket/clob-client": "^4.20.0",
     "airtable": "^0.12.2",
     "isomorphic-ws": "^5.0.0",
-    "tslib": "^2.8.1"
+    "tslib": "^2.8.1",
+    "ethers": "^5.7.1"
   }
 }

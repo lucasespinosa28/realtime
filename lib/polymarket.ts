@@ -1,8 +1,24 @@
-import { ClobClient } from "@polymarket/clob-client";
+import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { polymarketAPILogger } from "../utils/logger";
+import { Wallet } from "ethers";
 
 const host = 'https://clob.polymarket.com';
-const clobClient = new ClobClient(host, 137);
+const key = process.env.PK;
+
+if (!key) {
+  throw new Error('Missing PK environment variable');
+}
+
+const POLYMARKET_PROXY_ADDRESS = process.env.PROXY_ADDRESS;
+if (!POLYMARKET_PROXY_ADDRESS) {
+  throw new Error('Missing PROXY_ADDRESS environment variable');
+}
+
+const signer = new Wallet(key);
+const clobClient = new ClobClient(host, 137, signer);
+const creds = await clobClient.deriveApiKey();
+
+const clienAuth = new ClobClient(host, 137, signer, creds, 2, POLYMARKET_PROXY_ADDRESS);
 
 export interface MarketWinner {
   winner: string;
@@ -45,6 +61,46 @@ export async function getMarket(conditionId: string) {
   } catch (error) {
     polymarketAPILogger.error("Error getting market for {conditionId}: {error}", {
       conditionId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}
+
+
+export async function placeOrder(asset: string, price: number) {
+  // Ensure price has exactly two decimals
+  const fixedPrice = Number(price.toFixed(2));
+  if (fixedPrice !== price) {
+    price = fixedPrice;
+  }
+  // If price is 0.96, 0.97, 0.98, or 0.99, set price to 0.95
+  if ([0.96, 0.97, 0.98, 0.99].includes(price)) {
+    price = 0.95;
+  }
+  if ([0.90, 0.91, 0.92, 0.93, 0.94].includes(price)) {
+    price = 0.90;
+  }
+  try {
+    const order = await clienAuth.createAndPostOrder(
+      {
+        tokenID: asset,
+        price: price,
+        side: Side.BUY,
+        size: 5,
+        feeRateBps: 0,
+      },
+      { tickSize: "0.01", negRisk: false },
+      OrderType.GTC,
+    );
+    polymarketAPILogger.info("Order placed for {asset} at price {price}", {
+      asset,
+      price
+    });
+    return order;
+  } catch (error) {
+    polymarketAPILogger.error("Error placing order for {tokenID}: {error}", {
+      asset,
       error: error instanceof Error ? error.message : String(error)
     });
     throw error;

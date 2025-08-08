@@ -57,6 +57,43 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
         const eventSlug = message.payload.eventSlug;
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;
+        
+        // Check if this is the first time we see this event at price > 0.8
+        if (message.payload.price > 0.8 && !recentIds.has(id)) {
+            // Maintain max cache size for recentIds
+            if (recentIds.size >= MAX_CACHE_SIZE) {
+                // Clear half the cache to prevent constant clearing
+                const idsArray = Array.from(recentIds);
+                recentIds.clear();
+                // Keep the second half
+                for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
+                    recentIds.add(idsArray[i]);
+                }
+            }
+            recentIds.add(id);
+
+            // Prepare data for Airtable (initial record with Up/Down counts)
+            const record = {
+                eventId: id,
+                coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
+                price: message.payload.price,
+                event: eventSlug,
+                outcome: outcome,
+                url: `https://polymarket.com/event/${eventSlug}`,
+                winner: "Undefined"
+            };
+
+            // Save to Airtable Table 2
+            try {
+                const recordId = await createRecord("Table 2", record);
+                appLogger.info("Created Table 2 record: {recordId}", { recordId });
+            } catch (error) {
+                appLogger.error("Failed to create Table 2 record: {error}", {
+                    error: error instanceof Error ? error.message : String(error)
+                });
+            }
+        }
+
         // Check if this is the first time we see this event at price > 0.9
         if (message.payload.price > 0.9 && !recentIds.has(id)) {
             // Maintain max cache size for recentIds
@@ -101,8 +138,6 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
                     error: error instanceof Error ? error.message : String(error)
                 });
             }
-
-
         }
     } catch (error) {
         appLogger.error("Error processing message: {error}", {

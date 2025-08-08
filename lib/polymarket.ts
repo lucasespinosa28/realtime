@@ -2,7 +2,7 @@ import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { polymarketAPILogger } from "../utils/logger";
 import { Wallet } from "ethers";
 
-const host = process.env.PROXY || 'https://clob.polymarket.com';
+const host = 'https://clob.polymarket.com';
 const key = process.env.PK;
 
 if (!key) {

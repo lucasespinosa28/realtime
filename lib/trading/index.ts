@@ -111,6 +111,22 @@ export async function placeOrder(asset: string, price: number) {
   }
 }
 
+/**
+ * Get book information by asset ID
+ */
+export async function getBook(tokenId: string) {
+  try {
+    return await clobClient.getOrderBook(tokenId);
+  } catch (error) {
+    polymarketAPILogger.error("Error getting market for {tokenId}: {error}", {
+      tokenId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}
+
+
 export const placePolymarketOrder = async (tokenId: string, price: number): Promise<void> => {
     try {
         // if (eventSlug.includes("ethereum-up-or-down")) {

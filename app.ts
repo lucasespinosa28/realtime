@@ -1,11 +1,12 @@
 import { RealTimeDataClient } from "./lib/websocket/client";
 import type { Message } from "./lib/websocket/model";
 import { setupMemoryMonitoring, setupGracefulShutdown } from "./utils/memory";
-import { configureLogging, appLogger } from "./utils/logger";
+import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
-import { saveToAirtable } from "./lib/storage";
+import { createRecord } from "./lib/storage";
 import { getBook, placePolymarketOrder } from "./lib/trading";
+import { extractCoinFromEvent } from "./utils/time";
 
 // Setup logging first
 await configureLogging();
@@ -32,7 +33,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     if (!shouldProcessMessage(message)) {
         return;
     }
-    
+
     try {
         const id = message.payload.conditionId;
         const eventSlug = message.payload.eventSlug;
@@ -43,18 +44,39 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         if (price > 0.9 && !cacheManager.hasId(id)) {
             const book = await getBook(tokenId);
             const bestAsk = book.asks.reverse()[0]; // Best (lowest) ask price
-           // const bestBid = book.bids.reverse()[0]; // Best (highest) bid price
-           // console.log("Best Ask:", bestAsk,"Best Bid:",bestBid,"Price:",price);
+            const bestBid = book.bids.reverse()[0]; // Best (highest) bid price
+            // console.log("Best Ask:", bestAsk,"Best Bid:",bestBid,"Price:",price);
 
             // Only place order if price <= bestAsk
             const bestAskPrice = parseFloat(bestAsk.price);
-            if (price <= bestAskPrice) {
+            const bestBidPrice = parseFloat(bestBid.price);
+            if (price <= bestAskPrice && bestBidPrice >= 85) {
                 cacheManager.addId(id);
-                await saveToAirtable(id, eventSlug, outcome, price);
+                const record = {
+                    eventId: id,
+                    coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
+                    price: price,
+                    event: eventSlug,
+                    assetId: tokenId,
+                    outcome: outcome,   
+                    url: `https://polymarket.com/event/${eventSlug}`,
+                    winner: "Undefined",
+                    asksSize: parseFloat(bestAsk.size),
+                    bidsSize: parseFloat(bestBid.size),
+                };
+
+                try {
+                    const recordId = await createRecord("Table 1", record);
+                    airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
+                } catch (error) {
+                    airtableLogger.error("Failed to create initial record: {error}", {
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                }
                 await placePolymarketOrder(tokenId, price);
                 appLogger.info(`Order placed: ${id}, ${eventSlug}, ${outcome}, ${price}`);
             } else {
-                appLogger.info(`Order not placed: price (${price}) > bestAsk (${bestAskPrice})`);
+                appLogger.info(`Order not placed: price (${price}) > bestAsk (${bestAskPrice}) or price < bestBid (${bestBidPrice}) or bestBidPrice < 85`);
             }
         }
     } catch (error) {

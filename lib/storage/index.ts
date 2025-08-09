@@ -1,6 +1,5 @@
 import Airtable from "airtable";
-import { extractCoinFromEvent } from "../../utils/time";
-import { airtableLogger } from "../../utils/logger";
+
 
 const baseId = process.env.BASE_ID;
 const apiKey = process.env.API_KEY;
@@ -24,9 +23,13 @@ export interface TradeRecord {
   coin: string;
   price: number;
   event: string;
+  assetId:string;
   outcome: string;
+  asksSize: number;
+  bidsSize: number;
   url: string;
   winner: string;
+
 }
 
 export interface TradeRecordWithId extends TradeRecord {
@@ -45,6 +48,7 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
           coin: record.coin,
           price: record.price,
           event: record.event,
+          assetId: record.assetId,
           outcome: record.outcome,
           url: record.url,
           winner: record.winner || "undefined",
@@ -87,6 +91,36 @@ export function updateWinner(table: string, airtableRecordId: string, winner: st
 }
 
 /**
+ * Update assetId, asksSize, and bidsSize for a record
+ */
+export function updateAssetAndSizes(
+  table: string,
+  airtableRecordId: string,
+  assetId: string,
+  asksSize: number,
+  bidsSize: number
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    base(table).update([
+      {
+        id: airtableRecordId,
+        fields: {
+          assetId,
+          asksSize,
+          bidsSize,
+        }
+      }
+    ], function (err) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
  * Get all records from Airtable
  */
 export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> {
@@ -105,7 +139,10 @@ export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> 
           coin: fields.coin,
           price: fields.price,
           event: fields.event,
+          assetId: fields.assetId,
           outcome: fields.outcome,
+          asksSize: fields.asksSize,
+          bidsSize: fields.bidsSize,
           url: fields.url,
           winner: fields.winner
         });
@@ -121,76 +158,3 @@ export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> 
   });
 }
 
-/**
- * Save outcome count to Table 2 - increment Up or Down count
- */
-export function saveOutcomeCount(table: string, eventId: string, outcome: string): Promise<string> {
-  return new Promise((resolve, reject) => {
-    // First, find the existing record
-    base(table).select({
-      filterByFormula: `{eventId} = '${eventId}'`,
-      maxRecords: 1
-    }).firstPage(function (err, records) {
-      if (err) {
-        reject(new Error(err.message || String(err)));
-        return;
-      }
-
-      if (records && records.length > 0) {
-        // Update existing record by incrementing the count
-        const record = records[0];
-        const currentUp = (record.get('Up') as number) || 0;
-        const currentDown = (record.get('Down') as number) || 0;
-
-        const newUp = outcome === 'Up' ? currentUp + 1 : currentUp;
-        const newDown = outcome === 'Down' ? currentDown + 1 : currentDown;
-
-        base(table).update([
-          {
-            id: record.id,
-            fields: {
-              Up: newUp,
-              Down: newDown
-            }
-          }
-        ], function (err, updatedRecords) {
-          if (err) {
-            reject(new Error(err.message || String(err)));
-            return;
-          }
-          if (updatedRecords && updatedRecords.length > 0) {
-            resolve(updatedRecords[0].getId());
-          } else {
-            reject(new Error('No records updated'));
-          }
-        });
-      } else {
-        reject(new Error(`No record found with eventId: ${eventId}`));
-      }
-    });
-  });
-}
-
-/**
- * Creates and saves record to Airtable
- */
-export const saveToAirtable = async (id: string, eventSlug: string, outcome: string, price: number): Promise<void> => {
-    const record = {
-        eventId: id,
-        coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
-        price: price,
-        event: eventSlug,
-        outcome: outcome,
-        url: `https://polymarket.com/event/${eventSlug}`,
-        winner: "Undefined"
-    };
-
-    try {
-        const recordId = await createRecord("Table 1", record);
-        airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
-    } catch (error) {
-        airtableLogger.error("Failed to create initial record: {error}", {
-            error: error instanceof Error ? error.message : String(error)
-        });
-    }
-};

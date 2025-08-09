@@ -1,6 +1,7 @@
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { Wallet } from "ethers";
 import { polymarketAPILogger } from "../../utils/logger";
+import type { MarketWinner, Market } from "./type";
 
 const host = 'https://clob.polymarket.com';
 const key = process.env.PK;
@@ -24,10 +25,6 @@ const creds = await clobClient.deriveApiKey();
 
 const clienAuth = new ClobClient(host, 137, signer, creds, 2, POLYMARKET_PROXY_ADDRESS);
 
-export interface MarketWinner {
-  winner: string;
-  isResolved: boolean;
-}
 
 /**
  * Get the winner of a market by condition ID
@@ -56,10 +53,12 @@ export async function getWinner(conditionId: string): Promise<MarketWinner> {
   }
 }
 
+
+
 /**
  * Get market information by condition ID
  */
-export async function getMarket(conditionId: string) {
+export async function getMarket(conditionId: string): Promise<Market> {
   try {
     return await clobClient.getMarket(conditionId);
   } catch (error) {

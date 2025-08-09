@@ -7,6 +7,7 @@
     "start:memory": "bun --expose-gc run app.ts",
     "update-winners": "bun run scripts/update-winners.ts",
     "update-assetId": "bun run scripts/update-assetId.ts",
+    "update-history": "bun run scripts/update-history.ts",
     "dev": "bun --watch app.ts",
     "build": "bun build app.ts --outdir ./dist",
     "test": "bun test",

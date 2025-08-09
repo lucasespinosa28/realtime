@@ -23,17 +23,18 @@ export interface TradeRecord {
   coin: string;
   price: number;
   event: string;
-  assetId:string;
+  assetId: string;
   outcome: string;
   asksSize: number;
   bidsSize: number;
   url: string;
   winner: string;
-
+  lowest: number;
 }
 
 export interface TradeRecordWithId extends TradeRecord {
   airtableId: string;
+  created: string;
 }
 
 /**
@@ -91,6 +92,60 @@ export function updateWinner(table: string, airtableRecordId: string, winner: st
 }
 
 /**
+ * Update lowest for a record
+ */
+export function updateLowest(table: string, airtableRecordId: string, lowest: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    base(table).update([
+      {
+        id: airtableRecordId,
+        fields: {
+          lowest: lowest,
+        }
+      }
+    ], function (err) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
+ * Get lowest for a record
+ */
+export function getLowest(table: string, airtableRecordId: string): Promise<number | undefined> {
+  return new Promise((resolve, reject) => {
+    base(table).find(airtableRecordId, function (err, record) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      if (!record) {
+        resolve(undefined);
+        return;
+      }
+      const fields = record.fields as unknown as TradeRecord;
+      resolve(fields.lowest);
+    });
+  });
+}
+
+/**
+ * Update lowest for a record using eventId
+ */
+export async function updateLowestByEventId(table: string, eventId: string, lowest: number): Promise<void> {
+  const records = await getAllRecords(table);
+  const found = records.find(r => r.eventId === eventId);
+  if (!found) {
+    throw new Error(`No record found with eventId: ${eventId}`);
+  }
+  return updateLowest(table, found.airtableId, lowest);
+}
+
+/**
  * Update assetId, asksSize, and bidsSize for a record
  */
 export function updateAssetAndSizes(
@@ -144,7 +199,9 @@ export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> 
           asksSize: fields.asksSize,
           bidsSize: fields.bidsSize,
           url: fields.url,
-          winner: fields.winner
+          winner: fields.winner,
+          created: String(record.get("Created") ?? ""),
+          lowest: fields.lowest
         });
       });
       fetchNextPage();

@@ -137,3 +137,16 @@ export const placePolymarketOrder = async (tokenId: string, price: number): Prom
         });
     }
 };
+
+
+export const getPricesHistory = async (market: string, startTs: number, endTs: number) => {
+  try{
+   const history = await clobClient.getPricesHistory({ market, startTs, endTs });
+    return history;
+  }catch (error) {
+    polymarketAPILogger.error("Error getting prices history: {error}", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+};

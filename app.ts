@@ -5,6 +5,7 @@ import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
+import { getLowest, updateLowest } from "./lib/storage/index";
 import { getBook, placePolymarketOrder } from "./lib/trading";
 import { extractCoinFromEvent } from "./utils/time";
 
@@ -21,6 +22,9 @@ const cacheManager = new CacheManager(32);
 // Periodic cleanup without message throttling
 let lastCleanup = Date.now();
 const CLEANUP_INTERVAL = 60000; // Cleanup every minute
+
+// Map to store eventId -> recordId
+const eventIdToRecordId: Map<string, string> = new Map();
 
 const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
     const now = Date.now();
@@ -40,17 +44,40 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;
         const price = message.payload.price;
+        if (cacheManager.hasId(id)) {
+            // Track and update lowest price for this id
+            const recordId = eventIdToRecordId.get(id);
+            if (recordId) {
+                try {
+                    const currentLowest = await getLowest("Table 1", recordId);
+                    if (typeof currentLowest === "number" && price < currentLowest) {
+                        await updateLowest("Table 1", recordId, price);
+                        airtableLogger.info(`Updated lowest price for ${eventSlug}: ${price}`);
+                    }
+                } catch (error) {
+                    airtableLogger.error("Failed to update lowest price: {error}", {
+                        error: error instanceof Error ? error.message : String(error)
+                    });
+                }
+            }
+        }
         // Check if this is the first time we see this event at price > 0.9
         if (price > 0.9 && !cacheManager.hasId(id)) {
             const book = await getBook(tokenId);
-            const bestAsk = book.asks.reverse()[0]; // Best (lowest) ask price
-            const bestBid = book.bids.reverse()[0]; // Best (highest) bid price
-            // console.log("Best Ask:", bestAsk,"Best Bid:",bestBid,"Price:",price);
 
-            // Only place order if price <= bestAsk
-            const bestAskPrice = parseFloat(bestAsk.price);
-            const bestBidPrice = parseFloat(bestBid.price);
-            if (price <= bestAskPrice && bestBidPrice >= 85) {
+            if (!book.asks.length || !book.bids.length) {
+                appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
+                return;
+            }
+
+            const ask = book.asks.reverse()[0]; // ask price
+            const bid = book.bids.reverse()[0]; // bid price
+            // console.log("Best Ask:", ask,"Best Bid:",bid,"Price:",price);
+
+            // Only place order if price <= ask
+            const askPrice = parseFloat(ask.price);
+            const bidPrice = parseFloat(bid.price);
+            if (price <= askPrice && bidPrice >= 0.85) {
                 cacheManager.addId(id);
                 const record = {
                     eventId: id,
@@ -58,15 +85,17 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                     price: price,
                     event: eventSlug,
                     assetId: tokenId,
-                    outcome: outcome,   
+                    outcome: outcome,
                     url: `https://polymarket.com/event/${eventSlug}`,
                     winner: "Undefined",
-                    asksSize: parseFloat(bestAsk.size),
-                    bidsSize: parseFloat(bestBid.size),
+                    asksSize: parseInt(ask.size),
+                    bidsSize: parseInt(bid.size),
+                    lowest: price
                 };
 
                 try {
                     const recordId = await createRecord("Table 1", record);
+                    eventIdToRecordId.set(id, recordId);
                     airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
                 } catch (error) {
                     airtableLogger.error("Failed to create initial record: {error}", {
@@ -76,7 +105,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 await placePolymarketOrder(tokenId, price);
                 appLogger.info(`Order placed: ${id}, ${eventSlug}, ${outcome}, ${price}`);
             } else {
-                appLogger.info(`Order not placed: price (${price}) > bestAsk (${bestAskPrice}) or price < bestBid (${bestBidPrice}) or bestBidPrice < 85`);
+                appLogger.info(`Order not placed: price (${price}) > ask (${askPrice}) or price < bid (${bidPrice}) or bidPrice < 85`);
             }
         }
     } catch (error) {

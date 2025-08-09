@@ -1,4 +1,6 @@
 import Airtable from "airtable";
+import { extractCoinFromEvent } from "../../utils/time";
+import { airtableLogger } from "../../utils/logger";
 
 const baseId = process.env.BASE_ID;
 const apiKey = process.env.API_KEY;
@@ -74,7 +76,7 @@ export function updateWinner(table: string, airtableRecordId: string, winner: st
           winner: winner,
         }
       }
-    ], function (err, records) {
+    ], function (err) {
       if (err) {
         reject(new Error(err.message || String(err)));
         return;
@@ -89,16 +91,23 @@ export function updateWinner(table: string, airtableRecordId: string, winner: st
  */
 export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> {
   return new Promise((resolve, reject) => {
-    const records: Array<any> = [];
+    const records: Array<TradeRecordWithId> = [];
 
     base(table).select({
       maxRecords: 1000,
       view: "Grid view"
     }).eachPage(function page(pageRecords, fetchNextPage) {
       pageRecords.forEach(function (record) {
+        const fields = record.fields as unknown as TradeRecord;
         records.push({
           airtableId: record.id,
-          ...record.fields
+          eventId: fields.eventId,
+          coin: fields.coin,
+          price: fields.price,
+          event: fields.event,
+          outcome: fields.outcome,
+          url: fields.url,
+          winner: fields.winner
         });
       });
       fetchNextPage();
@@ -161,3 +170,27 @@ export function saveOutcomeCount(table: string, eventId: string, outcome: string
     });
   });
 }
+
+/**
+ * Creates and saves record to Airtable
+ */
+export const saveToAirtable = async (id: string, eventSlug: string, outcome: string, price: number): Promise<void> => {
+    const record = {
+        eventId: id,
+        coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
+        price: price,
+        event: eventSlug,
+        outcome: outcome,
+        url: `https://polymarket.com/event/${eventSlug}`,
+        winner: "Undefined"
+    };
+
+    try {
+        const recordId = await createRecord("Table 1", record);
+        airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
+    } catch (error) {
+        airtableLogger.error("Failed to create initial record: {error}", {
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
+};

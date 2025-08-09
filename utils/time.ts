@@ -28,7 +28,7 @@ export function getCurrentETParts(): { month: string, day: number, hour: number,
   const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(now);
   const month = parts.find(p => p.type === "month")?.value || "";
   const day = parseInt(parts.find(p => p.type === "day")?.value || "0", 10);
-  let hour = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10);
+  const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10);
   const ampm = (parts.find(p => p.type === "dayPeriod")?.value || "AM").toUpperCase();
   return { month, day, hour, ampm };
 }
@@ -57,7 +57,7 @@ export function isTimeMatch(title: string): boolean {
   if (!titleParts) return false;
 
   const etParts = getCurrentETParts();
-  
+
   return (
     titleParts.month.toLowerCase() === etParts.month.toLowerCase() &&
     titleParts.day === etParts.day &&

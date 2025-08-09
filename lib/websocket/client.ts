@@ -283,6 +283,6 @@ export class RealTimeDataClient {
     }
 }
 
-function delay(ms: number) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
+// function delay(ms: number) {
+//     return new Promise(resolve => setTimeout(resolve, ms));
+// }

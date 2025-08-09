@@ -1,10 +1,11 @@
 import { RealTimeDataClient } from "./lib/websocket/client";
 import type { Message } from "./lib/websocket/model";
-import { createRecord } from "./lib/airtable";
-import { isTimeMatch, extractCoinFromEvent } from "./utils/time";
 import { setupMemoryMonitoring, setupGracefulShutdown } from "./utils/memory";
 import { configureLogging, appLogger } from "./utils/logger";
-import { placeOrder } from "./lib/polymarket";
+import { CacheManager } from "./lib/cache";
+import { shouldProcessMessage } from "./lib/processing";
+import { saveToAirtable } from "./lib/storage";
+import { placePolymarketOrder } from "./lib/trading";
 
 // Setup logging first
 await configureLogging();
@@ -13,135 +14,36 @@ await configureLogging();
 setupMemoryMonitoring(60000, 100); // Monitor every minute, GC at 100MB
 setupGracefulShutdown();
 
-// Use Set for O(1) lookups and automatic deduplication
-const recentIds08 = new Set<string>(); // For tracking events at price > 0.8
-const recentIds09 = new Set<string>(); // For tracking events at price > 0.9
-const MAX_CACHE_SIZE = 32; // Reduced for lower memory usage
+// Create cache manager instance
+const cacheManager = new CacheManager(32);
 
 // Periodic cleanup without message throttling
 let lastCleanup = Date.now();
 const CLEANUP_INTERVAL = 60000; // Cleanup every minute
 
-const onMessage = async (_client: any, message: Message): Promise<void> => {
+const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
     const now = Date.now();
-
-    // Periodic cleanup every minute
+    // Periodic cleanup every minute 
     if (now - lastCleanup > CLEANUP_INTERVAL) {
         lastCleanup = now;
-
-        // Clean up cache if it gets too large
-        if (recentIds08.size > MAX_CACHE_SIZE) {
-            recentIds08.clear();
-        }
-        if (recentIds09.size > MAX_CACHE_SIZE) {
-            recentIds09.clear();
-        }
-
-        // Force garbage collection if available
-        if (global.gc) {
-            global.gc();
-        }
+        cacheManager.performCleanup();
     }
-    // Early return if not relevant message type
-    if (!message?.payload?.slug?.includes("up-or-down")) {
+
+    if (!shouldProcessMessage(message)) {
         return;
     }
+    
     try {
-        // Check if time matches current ET time
-        if (!isTimeMatch(message.payload.title)) {
-            return;
-        }
-        // appLogger.info("Processing message for event: {event} with price  {outcome}:{price}", {
-        //     event: message.payload.eventSlug,
-        //     price: message.payload.price,
-        //     outcome: message.payload.outcome
-        // });
-
         const id = message.payload.conditionId;
         const eventSlug = message.payload.eventSlug;
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;
-        
-        // Check if this is the first time we see this event at price > 0.8
-        if (message.payload.price > 0.8 && !recentIds08.has(id)) {
-            // Maintain max cache size for recentIds08
-            if (recentIds08.size >= MAX_CACHE_SIZE) {
-                // Clear half the cache to prevent constant clearing
-                const idsArray = Array.from(recentIds08);
-                recentIds08.clear();
-                // Keep the second half
-                for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
-                    recentIds08.add(idsArray[i]);
-                }
-            }
-            recentIds08.add(id);
-
-            // Prepare data for Airtable (initial record with Up/Down counts)
-            const record = {
-                eventId: id,
-                coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
-                price: message.payload.price,
-                event: eventSlug,
-                outcome: outcome,
-                url: `https://polymarket.com/event/${eventSlug}`,
-                winner: "Undefined"
-            };
-
-            // Save to Airtable Table 2
-            try {
-                const recordId = await createRecord("Table 2", record);
-                appLogger.info("Created Table 2 record: {recordId}", { recordId });
-            } catch (error) {
-                appLogger.error("Failed to create Table 2 record: {error}", {
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            }
-        }
-
+        const price = message.payload.price;
         // Check if this is the first time we see this event at price > 0.9
-        if (message.payload.price > 0.9 && !recentIds09.has(id)) {
-            // Maintain max cache size for recentIds09
-            if (recentIds09.size >= MAX_CACHE_SIZE) {
-                // Clear half the cache to prevent constant clearing
-                const idsArray = Array.from(recentIds09);
-                recentIds09.clear();
-                // Keep the second half
-                for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
-                    recentIds09.add(idsArray[i]);
-                }
-            }
-            recentIds09.add(id);
-
-            // Prepare data for Airtable (initial record with Up/Down counts)
-            const record = {
-                eventId: id,
-                coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
-                price: message.payload.price,
-                event: eventSlug,
-                outcome: outcome,
-                url: `https://polymarket.com/event/${eventSlug}`,
-                winner: "Undefined"
-            };
-
-            // Save to Airtable Table 1
-            try {
-                const recordId = await createRecord("Table 1", record);
-                appLogger.info("Created initial record with counts: {recordId}", { recordId });
-            } catch (error) {
-                appLogger.error("Failed to create initial record: {error}", {
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            }
-
-            try{
-                // if (eventSlug.includes("ethereum-up-or-down")) {
-                    await placeOrder(tokenId, message.payload.price);
-                // }
-            } catch (error) {
-                appLogger.error("Error placing order: {error}", {
-                    error: error instanceof Error ? error.message : String(error)
-                });
-            }
+        if (price > 0.9 && !cacheManager.hasId(id)) {
+            cacheManager.addId(id);
+            await saveToAirtable(id, eventSlug, outcome, price);
+            await placePolymarketOrder(tokenId, price);
         }
     } catch (error) {
         appLogger.error("Error processing message: {error}", {
@@ -150,7 +52,7 @@ const onMessage = async (_client: any, message: Message): Promise<void> => {
     }
 };
 
-const onStatusChange = (status: any) => {
+const onStatusChange = (status: string) => {
     appLogger.info("WebSocket status changed: {status}", { status });
 };
 

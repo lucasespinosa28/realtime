@@ -1,5 +1,5 @@
-import { getAllRecords, updateWinner } from "../lib/airtable";
-import { getWinner } from "../lib/polymarket";
+import { getAllRecords, updateWinner } from "../lib/storage";
+import { getWinner } from "../lib/trading";
 import { configureLogging, scriptsLogger } from "../utils/logger";
 
 // Setup logging for the script
@@ -35,7 +35,10 @@ async function updateAllWinners(table: string = 'Table 1') {
 
 // Run if this script is executed directly
 if (require.main === module) {
-  updateAllWinners()
+  // Get table name from command line arguments, default to 'Table 1'
+  const tableName = process.argv[2] || 'Table 1';
+  
+  updateAllWinners(tableName)
     .then(() => process.exit(0))
     .catch((error) => {
       scriptsLogger.fatal("Script failed: {error}", {

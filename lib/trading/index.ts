@@ -1,10 +1,9 @@
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
-import { polymarketAPILogger } from "../utils/logger";
 import { Wallet } from "ethers";
+import { polymarketAPILogger } from "../../utils/logger";
 
 const host = 'https://clob.polymarket.com';
 const key = process.env.PK;
-
 if (!key) {
   throw new Error('Missing PK environment variable');
 }
@@ -12,6 +11,11 @@ if (!key) {
 const POLYMARKET_PROXY_ADDRESS = process.env.PROXY_ADDRESS;
 if (!POLYMARKET_PROXY_ADDRESS) {
   throw new Error('Missing PROXY_ADDRESS environment variable');
+}
+
+const size = process.env.SIZE;
+if (!size) {
+  throw new Error('Missing SIZE environment variable');
 }
 
 const signer = new Wallet(key);
@@ -87,7 +91,7 @@ export async function placeOrder(asset: string, price: number) {
         tokenID: asset,
         price: price,
         side: Side.BUY,
-        size: 5,
+        size: Number(size),
         feeRateBps: 0,
       },
       { tickSize: "0.01", negRisk: false },
@@ -106,3 +110,15 @@ export async function placeOrder(asset: string, price: number) {
     throw error;
   }
 }
+
+export const placePolymarketOrder = async (tokenId: string, price: number): Promise<void> => {
+    try {
+        // if (eventSlug.includes("ethereum-up-or-down")) {
+        await placeOrder(tokenId, price);
+        // }
+    } catch (error) {
+        polymarketAPILogger.error("Error placing order: {error}", {
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
+};

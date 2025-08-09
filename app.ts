@@ -52,6 +52,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 cacheManager.addId(id);
                 await saveToAirtable(id, eventSlug, outcome, price);
                 await placePolymarketOrder(tokenId, price);
+                appLogger.info(`Order placed: ${id}, ${eventSlug}, ${outcome}, ${price}`);
             } else {
                 appLogger.info(`Order not placed: price (${price}) > bestAsk (${bestAskPrice})`);
             }

@@ -36,9 +36,6 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
           outcome: record.outcome,
           url: record.url,
           winner: record.winner || "undefined",
-          asksSize: record.asksSize,
-          bidsSize: record.bidsSize,
-          lowest: record.lowest
         }
       }
     ], function (err, records) {
@@ -102,45 +99,45 @@ export function updateLowest(table: string, airtableRecordId: string, lowest: nu
 /**
  * Get lowest for a record
  */
-export function getLowest(table: string, airtableRecordId: string): Promise<number | undefined> {
-  return new Promise((resolve, reject) => {
-    base(table).find(airtableRecordId, function (err, record) {
-      if (err) {
-        reject(new Error(err.message || String(err)));
-        return;
-      }
-      if (!record) {
-        resolve(undefined);
-        return;
-      }
-      const fields = record.fields as unknown as TradeRecord;
-      resolve(fields.lowest);
-    });
-  });
-}
+// export function getLowest(table: string, airtableRecordId: string): Promise<number | undefined> {
+//   return new Promise((resolve, reject) => {
+//     base(table).find(airtableRecordId, function (err, record) {
+//       if (err) {
+//         reject(new Error(err.message || String(err)));
+//         return;
+//       }
+//       if (!record) {
+//         resolve(undefined);
+//         return;
+//       }
+//       const fields = record.fields as unknown as TradeRecord;
+//       resolve(fields.lowest);
+//     });
+//   });
+// }
 
 /**
  * Get record data including lowest and outcome
  */
-export function getRecordData(table: string, airtableRecordId: string): Promise<{ lowest: number; outcome: string } | undefined> {
-  return new Promise((resolve, reject) => {
-    base(table).find(airtableRecordId, function (err, record) {
-      if (err) {
-        reject(new Error(err.message || String(err)));
-        return;
-      }
-      if (!record) {
-        resolve(undefined);
-        return;
-      }
-      const fields = record.fields as unknown as TradeRecord;
-      resolve({
-        lowest: fields.lowest,
-        outcome: fields.outcome
-      });
-    });
-  });
-}
+// export function getRecordData(table: string, airtableRecordId: string): Promise<{ lowest: number; outcome: string } | undefined> {
+//   return new Promise((resolve, reject) => {
+//     base(table).find(airtableRecordId, function (err, record) {
+//       if (err) {
+//         reject(new Error(err.message || String(err)));
+//         return;
+//       }
+//       if (!record) {
+//         resolve(undefined);
+//         return;
+//       }
+//       const fields = record.fields as unknown as TradeRecord;
+//       resolve({
+//         lowest: fields.lowest,
+//         outcome: fields.outcome
+//       });
+//     });
+//   });
+// }
 
 /**
  * Update lowest for a record using eventId
@@ -185,6 +182,50 @@ export function updateAssetAndSizes(
 }
 
 /**
+ * Update price for a record
+ */
+export function updatePrice(table: string, airtableRecordId: string, price: number): Promise<void> {
+  return new Promise((resolve, reject) => {
+    base(table).update([
+      {
+        id: airtableRecordId,
+        fields: {
+          price: price,
+        }
+      }
+    ], function (err) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
+ * Update buyed for a record
+ */
+export function updateBuyed(table: string, airtableRecordId: string, buyed: boolean): Promise<void> {
+  return new Promise((resolve, reject) => {
+    base(table).update([
+      {
+        id: airtableRecordId,
+        fields: {
+          buyed: buyed,
+        }
+      }
+    ], function (err) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      resolve();
+    });
+  });
+}
+
+/**
  * Get all records from Airtable
  */
 export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> {
@@ -205,12 +246,10 @@ export function getAllRecords(table: string): Promise<Array<TradeRecordWithId>> 
           event: fields.event,
           assetId: fields.assetId,
           outcome: fields.outcome,
-          asksSize: fields.asksSize,
-          bidsSize: fields.bidsSize,
           url: fields.url,
           winner: fields.winner,
           created: String(record.get("Created") ?? ""),
-          lowest: fields.lowest
+          buyed: fields.buyed || true
         });
       });
       fetchNextPage();

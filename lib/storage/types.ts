@@ -5,11 +5,9 @@ export interface TradeRecord {
   event: string;
   assetId: string;
   outcome: string;
-  asksSize: number;
-  bidsSize: number;
   url: string;
   winner: string;
-  lowest: number;
+  buyed: boolean;
 }
 
 export interface TradeRecordWithId extends TradeRecord {

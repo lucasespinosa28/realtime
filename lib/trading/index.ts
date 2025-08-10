@@ -9,8 +9,8 @@ if (!key) {
   throw new Error('Missing PK environment variable');
 }
 
-const POLYMARKET_PROXY_ADDRESS = process.env.PROXY_ADDRESS;
-if (!POLYMARKET_PROXY_ADDRESS) {
+const address = process.env.PROXY_ADDRESS;
+if (!address) {
   throw new Error('Missing PROXY_ADDRESS environment variable');
 }
 
@@ -23,7 +23,7 @@ const signer = new Wallet(key);
 const clobClient = new ClobClient(host, 137, signer);
 const creds = await clobClient.deriveApiKey();
 
-const clienAuth = new ClobClient(host, 137, signer, creds, 2, POLYMARKET_PROXY_ADDRESS);
+const clienAuth = new ClobClient(host, 137, signer, creds, 2, address);
 
 
 /**
@@ -139,10 +139,21 @@ export const placePolymarketOrder = async (tokenId: string, price: number): Prom
 
 export const getPricesHistory = async (market: string, startTs: number, endTs: number) => {
   try {
-    const history = await clobClient.getPricesHistory({ market, startTs, endTs });
-    return history;
+    return clobClient.getPricesHistory({ market, startTs, endTs });
   } catch (error) {
     polymarketAPILogger.error("Error getting prices history: {error}", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+};
+
+
+export const getBuyedOrder = async (market: string) => {
+  try {
+    return await clienAuth.getTrades({ market: market, maker_address: address });
+  } catch (error) {
+    polymarketAPILogger.error("Error getting bought orders: {error}", {
       error: error instanceof Error ? error.message : String(error)
     });
     throw error;

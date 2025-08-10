@@ -78,7 +78,11 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             const askPrice = parseFloat(ask.price);
             const bidPrice = parseFloat(bid.price);
             if (bidPrice >= 0.85) {
-                cacheManager.addId(id);
+                // Double-check cache before placing order (race condition protection)
+                if (!cacheManager.checkAndAdd(id)) {
+                    appLogger.info(`Order not placed: another process already handled ${id}`);
+                    return;
+                }
                 const record = {
                     eventId: id,
                     coin: extractCoinFromEvent(eventSlug) ?? "Unknown",

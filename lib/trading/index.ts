@@ -127,23 +127,21 @@ export async function getBook(tokenId: string) {
 
 
 export const placePolymarketOrder = async (tokenId: string, price: number): Promise<void> => {
-    try {
-        // if (eventSlug.includes("ethereum-up-or-down")) {
-        await placeOrder(tokenId, price);
-        // }
-    } catch (error) {
-        polymarketAPILogger.error("Error placing order: {error}", {
-            error: error instanceof Error ? error.message : String(error)
-        });
-    }
+  try {
+    await placeOrder(tokenId, price);
+  } catch (error) {
+    polymarketAPILogger.error("Error placing order: {error}", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
 };
 
 
 export const getPricesHistory = async (market: string, startTs: number, endTs: number) => {
-  try{
-   const history = await clobClient.getPricesHistory({ market, startTs, endTs });
+  try {
+    const history = await clobClient.getPricesHistory({ market, startTs, endTs });
     return history;
-  }catch (error) {
+  } catch (error) {
     polymarketAPILogger.error("Error getting prices history: {error}", {
       error: error instanceof Error ? error.message : String(error)
     });

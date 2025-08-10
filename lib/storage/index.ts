@@ -1,4 +1,5 @@
 import Airtable from "airtable";
+import type { TradeRecord, TradeRecordWithId } from "./types";
 
 
 const baseId = process.env.BASE_ID;
@@ -18,24 +19,6 @@ Airtable.configure({
 
 const base = Airtable.base(baseId);
 
-export interface TradeRecord {
-  eventId: string;
-  coin: string;
-  price: number;
-  event: string;
-  assetId: string;
-  outcome: string;
-  asksSize: number;
-  bidsSize: number;
-  url: string;
-  winner: string;
-  lowest: number;
-}
-
-export interface TradeRecordWithId extends TradeRecord {
-  airtableId: string;
-  created: string;
-}
 
 /**
  * Create a new record in Airtable
@@ -53,6 +36,9 @@ export function createRecord(table: string, record: TradeRecord): Promise<string
           outcome: record.outcome,
           url: record.url,
           winner: record.winner || "undefined",
+          asksSize: record.asksSize,
+          bidsSize: record.bidsSize,
+          lowest: record.lowest
         }
       }
     ], function (err, records) {

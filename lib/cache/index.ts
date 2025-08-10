@@ -41,6 +41,30 @@ export class CacheManager {
         return this.recentIds.has(id);
     }
 
+    /**
+     * Atomically checks if ID exists and adds it if not.
+     * Returns true if ID was added (first time seeing it), false if it already existed.
+     */
+    checkAndAdd(id: string): boolean {
+        if (this.recentIds.has(id)) {
+            return false; // ID already exists
+        }
+        
+        // Maintain max cache size before adding
+        if (this.recentIds.size >= this.maxCacheSize) {
+            // Clear half the cache to prevent constant clearing
+            const idsArray = Array.from(this.recentIds);
+            this.recentIds.clear();
+            // Keep the second half
+            for (let i = Math.floor(idsArray.length / 2); i < idsArray.length; i++) {
+                this.recentIds.add(idsArray[i]);
+            }
+        }
+        
+        this.recentIds.add(id);
+        return true; // ID was added
+    }
+
     get size(): number {
         return this.recentIds.size;
     }

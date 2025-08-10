@@ -5,7 +5,7 @@ import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
-import { getLowest, updateLowest } from "./lib/storage/index";
+import { updateLowest, getRecordData } from "./lib/storage/index";
 import { getBook, placePolymarketOrder } from "./lib/trading";
 import { extractCoinFromEvent } from "./utils/time";
 
@@ -49,8 +49,9 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             const recordId = eventIdToRecordId.get(id);
             if (recordId) {
                 try {
-                    const currentLowest = await getLowest("Table 2", recordId);
-                    if (typeof currentLowest === "number" && price < currentLowest) {
+                    const recordData = await getRecordData("Table 2", recordId);
+                    if (recordData && typeof recordData.lowest === "number" && 
+                        price < recordData.lowest && outcome != recordData.outcome) {
                         await updateLowest("Table 2", recordId, price);
                         airtableLogger.info(`Updated lowest price for ${eventSlug}: ${price}`);
                     }

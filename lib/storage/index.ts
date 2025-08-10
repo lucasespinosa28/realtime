@@ -120,6 +120,29 @@ export function getLowest(table: string, airtableRecordId: string): Promise<numb
 }
 
 /**
+ * Get record data including lowest and outcome
+ */
+export function getRecordData(table: string, airtableRecordId: string): Promise<{ lowest: number; outcome: string } | undefined> {
+  return new Promise((resolve, reject) => {
+    base(table).find(airtableRecordId, function (err, record) {
+      if (err) {
+        reject(new Error(err.message || String(err)));
+        return;
+      }
+      if (!record) {
+        resolve(undefined);
+        return;
+      }
+      const fields = record.fields as unknown as TradeRecord;
+      resolve({
+        lowest: fields.lowest,
+        outcome: fields.outcome
+      });
+    });
+  });
+}
+
+/**
  * Update lowest for a record using eventId
  */
 export async function updateLowestByEventId(table: string, eventId: string, lowest: number): Promise<void> {

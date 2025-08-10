@@ -49,9 +49,9 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             const recordId = eventIdToRecordId.get(id);
             if (recordId) {
                 try {
-                    const currentLowest = await getLowest("Table 1", recordId);
+                    const currentLowest = await getLowest("Table 2", recordId);
                     if (typeof currentLowest === "number" && price < currentLowest) {
-                        await updateLowest("Table 1", recordId, price);
+                        await updateLowest("Table 2", recordId, price);
                         airtableLogger.info(`Updated lowest price for ${eventSlug}: ${price}`);
                     }
                 } catch (error) {
@@ -72,12 +72,12 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
 
             const ask = book.asks.reverse()[0]; // ask price
             const bid = book.bids.reverse()[0]; // bid price
-            // console.log("Best Ask:", ask,"Best Bid:",bid,"Price:",price);
+            console.log("Best Ask:", ask,"Best Bid:",bid,"Price:",price);
 
             // Only place order if price <= ask
             const askPrice = parseFloat(ask.price);
             const bidPrice = parseFloat(bid.price);
-            if (price <= askPrice && bidPrice >= 0.85) {
+            if (bidPrice >= 0.85) {
                 cacheManager.addId(id);
                 const record = {
                     eventId: id,
@@ -94,7 +94,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 };
 
                 try {
-                    const recordId = await createRecord("Table 1", record);
+                    const recordId = await createRecord("Table 2", record);
                     eventIdToRecordId.set(id, recordId);
                     airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
                 } catch (error) {

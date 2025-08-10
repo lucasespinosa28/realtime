@@ -96,12 +96,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                     bidsSize: parseInt(bid.size),
                     lowest: price
                 };
-                console.log({price})
-                console.log({asksSize: parseInt(ask.size)})
-                console.log({bidsSize: parseInt(bid.size)})
-                console.log({asksSize: ask.size})
-                console.log({bidsSize: bid.size})
-                console.log({record})
                 try {
                     const recordId = await createRecord("Table 2", record);
                     eventIdToRecordId.set(id, recordId);

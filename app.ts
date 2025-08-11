@@ -99,7 +99,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         error: error instanceof Error ? error.message : String(error)
                     });
                 }
-                await placePolymarketOrder(tokenId, price,id,side_);
+                await placePolymarketOrder(tokenId, price);
                 appLogger.info(`Order placed: ${id}, ${eventSlug}, ${outcome}, ${price}`);
             } else {
                 appLogger.info(`Order not placed: price (${price}) > ask (${askPrice}) or price < bid (${bidPrice}) or bidPrice < 85`);

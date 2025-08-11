@@ -2,7 +2,6 @@ import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { Wallet } from "ethers";
 import { polymarketAPILogger } from "../../utils/logger";
 import type { MarketWinner, Market } from "./type";
-import { updateOrder } from "../storage/db";
 
 const host = 'https://clob.polymarket.com';
 const key = process.env.PK;
@@ -72,7 +71,7 @@ export async function getMarket(conditionId: string): Promise<Market> {
 }
 
 
-export async function placeOrder(asset: string, price: number,outcome:string,id:string) {
+export async function placeOrder(asset: string, price: number) {
   // Ensure price has exactly two decimals
   const fixedPrice = Number(price.toFixed(2));
   if (fixedPrice !== price) {
@@ -101,7 +100,7 @@ export async function placeOrder(asset: string, price: number,outcome:string,id:
       asset,
       price
     });
-    updateOrder(id,{timestamp: Date.now(), price, size: Number(size), side: outcome});
+
     return order;
   } catch (error) {
     polymarketAPILogger.error("Error placing order for {tokenID}: {error}", {
@@ -128,9 +127,9 @@ export async function getBook(tokenId: string) {
 }
 
 
-export const placePolymarketOrder = async (tokenId: string, price: number,outcome:string,id:string): Promise<void> => {
+export const placePolymarketOrder = async (tokenId: string, price: number): Promise<void> => {
   try {
-    await placeOrder(tokenId, price,outcome,id);
+    await placeOrder(tokenId, price);
   } catch (error) {
     polymarketAPILogger.error("Error placing order: {error}", {
       error: error instanceof Error ? error.message : String(error)

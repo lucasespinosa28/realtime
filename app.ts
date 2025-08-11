@@ -7,9 +7,13 @@ import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
 import { getBook, placePolymarketOrder } from "./lib/trading";
 import { extractCoinFromEvent } from "./utils/time";
+import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/db";
 
 // Setup logging first
 await configureLogging();
+
+// Initialize database (create tables if needed)
+init();
 
 // Setup memory monitoring and graceful shutdown
 setupMemoryMonitoring(60000, 100); // Monitor every minute, GC at 100MB
@@ -43,7 +47,16 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;
         const price = message.payload.price;
-        
+        const size = message.payload.size;
+        const side = message.payload.side;
+        const timestamp = message.payload.timestamp;
+        // console.log(message);
+        const side_ = outcome.toLowerCase() === "up" ? "up" : "down";
+
+        createMarket({ id: id, title: message.payload.title });
+        updateAssetId(id, side_, tokenId)
+        addTrade(id, side_, { price, size, timestamp, side });
+
         // Check if this is the first time we see this event at price > 0.9
         if (price > 0.9 && !cacheManager.hasId(id)) {
             const book = await getBook(tokenId);
@@ -86,7 +99,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         error: error instanceof Error ? error.message : String(error)
                     });
                 }
-                await placePolymarketOrder(tokenId, price);
+                await placePolymarketOrder(tokenId, price,id,side_);
                 appLogger.info(`Order placed: ${id}, ${eventSlug}, ${outcome}, ${price}`);
             } else {
                 appLogger.info(`Order not placed: price (${price}) > ask (${askPrice}) or price < bid (${bidPrice}) or bidPrice < 85`);

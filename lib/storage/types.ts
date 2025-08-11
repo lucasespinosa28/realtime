@@ -18,29 +18,28 @@ export interface TradeRecordWithId extends TradeRecord {
 
 export interface DatabaseRecord {
   id: string;
-  order: Order;
-  up: {
+  title: string;
+  order?: Order;
+  up?: {
     assetId: string,
     trades: Trade[]
   }
-  down: {
+  down?: {
     assetId: string,
     trades: Trade[]
   }
 }
-export enum Side {
-  UP = "UP",
-  DOWN = "DOWN"
-}
+
 export interface Order {
   timestamp: number;
   price: number;
   size: number;
-  side: Side;
+  side: string;
 }
 
 export interface Trade {
   timestamp: number
   price: number;
   size: number;
+  side: string;
 }

@@ -11,7 +11,8 @@
     "dev": "bun --watch app.ts",
     "build": "bun build app.ts --outdir ./dist",
     "test": "bun test",
-    "lint": "bunx eslint"
+    "lint": "bunx eslint",
+    "export": "bun run scripts/export-db.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

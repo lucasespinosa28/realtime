@@ -14,7 +14,8 @@ export async function configureLogging() {
       { category: "polymarket:websocket", lowestLevel: "warning", sinks: ["console"] },
       { category: "polymarket:airtable", lowestLevel: "info", sinks: ["console"] },
       { category: "polymarket:memory", lowestLevel: "info", sinks: ["console"] },
-      { category: "polymarket:scripts", lowestLevel: "info", sinks: ["console"] }
+      { category: "polymarket:scripts", lowestLevel: "info", sinks: ["console"] },
+      { category: "polymarket:db", lowestLevel: "info", sinks: ["console"] }
     ]
   });
 }
@@ -26,3 +27,4 @@ export const airtableLogger = getLogger(["polymarket", "airtable"]);
 export const memoryLogger = getLogger(["polymarket", "memory"]);
 export const scriptsLogger = getLogger(["polymarket", "scripts"]);
 export const polymarketAPILogger = getLogger(["polymarket", "api"]);
+export const dbLogger = getLogger(["polymarket", "db"]);

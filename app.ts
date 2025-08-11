@@ -74,9 +74,11 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                     buyed: false,
                 };
                 try {
-                    const recordId = await createRecord("Table 1", record);
-                    eventIdToRecordId.set(id, recordId);
-                    airtableLogger.info("Created initial record with counts: {recordId}", { recordId });
+                    if (price > 0.9 && !cacheManager.hasId(id)) {
+                        const recordId = await createRecord("Table 3", record);
+                        eventIdToRecordId.set(id, recordId);
+                        airtableLogger.info("Created initial record with counts: {recordId}, market_slug: {market_slug}", { recordId, market_slug: market.market_slug });
+                    }
                     return;
                 } catch (error) {
                     airtableLogger.error("Failed to create initial record: {error}", {

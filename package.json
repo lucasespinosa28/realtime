@@ -12,7 +12,10 @@
     "build": "bun build app.ts --outdir ./dist",
     "test": "bun test",
     "lint": "bunx eslint",
-    "export": "bun run scripts/export-db.ts"
+    "export": "bun run scripts/export-db.ts",
+    "markets": "bun run scripts/fetch_all_markets.ts",
+    "ending": "bun run scripts/markets_ending_soon.ts",
+    "sports": "bun run scripts/markets_with_tag_sports.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.33.0",

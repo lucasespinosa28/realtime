@@ -1,0 +1,650 @@
+[
+  {
+    "id": "0x71b09addaedae22c76a3d7b071d54141b5459e07f5c500d72c873fe347594fea",
+    "title": "Pirates vs. Brewers",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:11Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0x71b09addaedae22c76a3d7b071d54141b5459e07f5c500d72c873fe347594fea",
+    "question_id": "0x5762c5093259ffa31d6958feef25d1117d4533ccbe61845f3e94ee39bb455a08",
+    "question": "Pirates vs. Brewers",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 7:40PM ET:\nIf the Pittsburgh Pirates win, the market will resolve to “Pirates”.\nIf the Milwaukee Brewers win, the market will resolve to “Brewers”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-pit-mil-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T23:40:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0xb2DEe345C36eAE1264DC286e4da5A0CcdC3221cF",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "156339111724563643517367695628301595893977965492426179395831460124695336903",
+        "outcome": "Pirates",
+        "price": 0.335,
+        "winner": false
+      },
+      {
+        "token_id": "70470367001407439891951085172013519900027385032110429439658818935669912629917",
+        "outcome": "Brewers",
+        "price": 0.665,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xabeeec06bf0567b3610d3cead97630c1334047a848747ae8c4e37f0038c409e2",
+    "title": "Padres vs. Giants",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:55Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xabeeec06bf0567b3610d3cead97630c1334047a848747ae8c4e37f0038c409e2",
+    "question_id": "0xa7ed4734983c42a231eb7ff02d99470ae188356f7172cbc4b1c953f13e3571d6",
+    "question": "Padres vs. Giants",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 9:45PM ET:\nIf the San Diego Padres win, the market will resolve to “Padres”.\nIf the San Francisco Giants win, the market will resolve to “Giants”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-sd-sf-2025-08-11",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T01:45:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x96583608c804C5E578e8b266d3183e0B463368e9",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "98727380027358759914626032611429977596985437746831497607894886153162195325213",
+        "outcome": "Padres",
+        "price": 0.46,
+        "winner": false
+      },
+      {
+        "token_id": "79292695986407421251690590252658110461286500047480942134498369660420682365451",
+        "outcome": "Giants",
+        "price": 0.54,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xc15a1cb7509d24db2a25713f18f34b22ca7380a5b877ac089227e700e333b1c8",
+    "title": "Rockies vs. Cardinals",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:21Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xc15a1cb7509d24db2a25713f18f34b22ca7380a5b877ac089227e700e333b1c8",
+    "question_id": "0xdbe4e292601937db6cba0c26b8b7262486d74ca7299e432beb2f27cd35c9cf2b",
+    "question": "Rockies vs. Cardinals",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 7:45PM ET:\nIf the Colorado Rockies win, the market will resolve to “Rockies”.\nIf the St. Louis Cardinals win, the market will resolve to “Cardinals”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-col-stl-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T23:45:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0xC0cC1a06379FEd92E1A27e17465991A8dB6C06fF",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "113632369277273585923624012635521331012907954727041225878619419477340904879008",
+        "outcome": "Rockies",
+        "price": 0.345,
+        "winner": false
+      },
+      {
+        "token_id": "90005622842571014107790500066382384124304237755091701623293422772273979830994",
+        "outcome": "Cardinals",
+        "price": 0.655,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xb43fafcd835af9527f68d335e4ad24ac39c1a198ea8e0992962f347d0b8c662f",
+    "title": "Tigers vs. White Sox",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:00:47Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xb43fafcd835af9527f68d335e4ad24ac39c1a198ea8e0992962f347d0b8c662f",
+    "question_id": "0x1fa2292ffbab256a2a547690631314864a4118054f8889e1b1749f5df8a56d96",
+    "question": "Tigers vs. White Sox",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 7:40PM ET:\nIf the Detroit Tigers win, the market will resolve to “Tigers”.\nIf the Chicago White Sox win, the market will resolve to “White Sox”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-det-cws-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T23:40:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x0Fb90b7895e91F108D69e3F4eF0fe13CBd0a34b1",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "112499269968466185737834068396893131811258817765856403349441836811966007261917",
+        "outcome": "Tigers",
+        "price": 0.57,
+        "winner": false
+      },
+      {
+        "token_id": "82539579921917503432648064287660712368657222822085867835315695716550081291479",
+        "outcome": "White Sox",
+        "price": 0.43,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0x64e5c4a981829672c89460959404e89a208aa2dcf04a86de075e69d80b383070",
+    "title": "Phillies vs. Reds",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:00:29Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0x64e5c4a981829672c89460959404e89a208aa2dcf04a86de075e69d80b383070",
+    "question_id": "0x748da93ac4596d95a71b1607ca5941d30e1bf1d8703f991377a0836b9a92d009",
+    "question": "Phillies vs. Reds",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 6:10PM ET:\nIf the Philadelphia Phillies win, the market will resolve to “Phillies”.\nIf the Cincinnati Reds win, the market will resolve to “Reds”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-phi-cin-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T22:10:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x4d91C67B97f8b19709580371104dF4Db00b78226",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "113756497832856817557343708042168234191426055385423022079663101683136704122325",
+        "outcome": "Phillies",
+        "price": 0.455,
+        "winner": false
+      },
+      {
+        "token_id": "61313325038862557225177165943401494301792792386552163036318278371158039024364",
+        "outcome": "Reds",
+        "price": 0.545,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0x9ff792889ce82f2f9734429bf294b321e4756df1e37b13944e7b58e6cbe19ada",
+    "title": "Diamondbacks vs. Rangers",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:29Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0x9ff792889ce82f2f9734429bf294b321e4756df1e37b13944e7b58e6cbe19ada",
+    "question_id": "0x97d7e26a3a5e5c5b23cc7bbc9a3c20c24f48391c815e7c326db323183bccac99",
+    "question": "Diamondbacks vs. Rangers",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 8:05PM ET:\nIf the Arizona Diamondbacks win, the market will resolve to “Diamondbacks”.\nIf the Texas Rangers win, the market will resolve to “Rangers”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-ari-tex-2025-08-11",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T00:05:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x1399b7cB1cC473dA184C24A2474555FAaFF8c3C7",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "68910545818089940938608609571795968947695975684844018178613314392880008232506",
+        "outcome": "Diamondbacks",
+        "price": 0.39,
+        "winner": false
+      },
+      {
+        "token_id": "1800980381849377353728526350574767854215761416751145213535450439937236602434",
+        "outcome": "Rangers",
+        "price": 0.61,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xf60b0e371519e85b1b358968a121efba51bb670959dabe37ccbde5a56cfcc34f",
+    "title": "Rays vs. Athletics",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:02:07Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xf60b0e371519e85b1b358968a121efba51bb670959dabe37ccbde5a56cfcc34f",
+    "question_id": "0xe684c9fdbefed0974342b798c77e3cbb6d398571cae562a8dfa0a7201a181b9b",
+    "question": "Rays vs. Athletics",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 10:05PM ET:\nIf the Tampa Bay Rays win, the market will resolve to “Rays”.\nIf the Athletics win, the market will resolve to “Athletics”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-tb-oak-2025-08-11",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T02:05:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x1411833811484097311227358371c4158C46cf4A",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "42984543951658375404045061977820769147312913122371560799827237961235450217991",
+        "outcome": "Rays",
+        "price": 0.5,
+        "winner": false
+      },
+      {
+        "token_id": "74577842926986452605781706729173786596742874939886579279312381399372884209012",
+        "outcome": "Athletics",
+        "price": 0.5,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0x8dee14982372d7904fe08514d4483cde0dd77d93ac24a5e4a9559773751c4ac8",
+    "title": "Sun vs Valkyries",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T10:30:47Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0x8dee14982372d7904fe08514d4483cde0dd77d93ac24a5e4a9559773751c4ac8",
+    "question_id": "0xc5f9839d3b26b7da39e7fb8944197039f0689e49cb040c6069fa3558e4cf693c",
+    "question": "Sun vs Valkyries",
+    "description": "In the upcoming WNBA game, scheduled for August 11 at 10:00PM ET:\nIf the Connecticut Sun win, the market will resolve to \"Sun\".\nIf the Golden State Valkyries win, the market will resolve to \"Valkyries\".\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.",
+    "market_slug": "wnba-conn-gsv-2025-08-11-moneyline",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T02:00:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x4b688e696f1FF49b146AB8Df2A40Dc2E5f5679a1",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/wnba-logo-PAR4befDAubM.png",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/wnba-logo-PAR4befDAubM.png",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "7264244408936198008029198778617815781017371531723698998579750960293211566407",
+        "outcome": "Sun",
+        "price": 0.23,
+        "winner": false
+      },
+      {
+        "token_id": "19455697406881498734633436403451279781146490737889676713960661149208917453187",
+        "outcome": "Valkyries",
+        "price": 0.77,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "WNBA",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xe7a97497aed3cc6c2fec1468d700e4f8e9ccf55dc2dfbe81427a01ec406d4111",
+    "title": "Twins vs. Yankees",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:00:39Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xe7a97497aed3cc6c2fec1468d700e4f8e9ccf55dc2dfbe81427a01ec406d4111",
+    "question_id": "0x63f7e550d56f5144c846fc91b5cd63cf55485c22b80b7ccb54fea71c03665f2a",
+    "question": "Twins vs. Yankees",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 7:05PM ET:\nIf the Minnesota Twins win, the market will resolve to “Twins”.\nIf the New York Yankees win, the market will resolve to “Yankees”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-min-nyy-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T23:05:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x0cb7ddbF0Ec980a5E2EC3883ba4eed203125cee8",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "71805616860265216680347840503234146054934168881502649115307676442447418941358",
+        "outcome": "Twins",
+        "price": 0.375,
+        "winner": false
+      },
+      {
+        "token_id": "14411434086897508423009818699422897407681147091210039649827829058281234703908",
+        "outcome": "Yankees",
+        "price": 0.625,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xfa9ea6e803185823c87d2015b25fd3ecdb7c46eec5c223c6a65f0019dbf168c9",
+    "title": "Dodgers vs. Angels",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:47Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xfa9ea6e803185823c87d2015b25fd3ecdb7c46eec5c223c6a65f0019dbf168c9",
+    "question_id": "0xdde40fe8c0df5dce75d6cf1151ff49c85c566d696291228ffae43e78a85200f6",
+    "question": "Dodgers vs. Angels",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 9:38PM ET:\nIf the Los Angeles Dodgers win, the market will resolve to “Dodgers”.\nIf the Los Angeles Angels win, the market will resolve to “Angels”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-lad-laa-2025-08-11",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T01:38:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x4D35367b39FfF86A255432cae4BC9fBE17B8105D",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "89888378407831318793645909241832454543287098799234645176928242362722262207402",
+        "outcome": "Dodgers",
+        "price": 0.615,
+        "winner": false
+      },
+      {
+        "token_id": "102925190781121025924719269025538932092123775082097940941523296461957023533145",
+        "outcome": "Angels",
+        "price": 0.385,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0x25b0241b66bf6a5263fe8541ef4776e6244e152fb5cdcd04037cc647e1aa1b0a",
+    "title": "Nationals vs. Royals",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:00:59Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0x25b0241b66bf6a5263fe8541ef4776e6244e152fb5cdcd04037cc647e1aa1b0a",
+    "question_id": "0xcd00501791a1436d2074877f8e749ce36e2ff36a5f78eed72051d988aef347cf",
+    "question": "Nationals vs. Royals",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 7:40PM ET:\nIf the Washington Nationals win, the market will resolve to “Nationals”.\nIf the Kansas City Royals win, the market will resolve to “Royals”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-wsh-kc-2025-08-11",
+    "end_date_iso": "2025-08-18T00:00:00Z",
+    "game_start_time": "2025-08-11T23:40:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0xe30D5a1A61b44728C4532ADB669E20830337B7CB",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "113073171674583482865195919551029584008568609373920368963376423296189992286334",
+        "outcome": "Nationals",
+        "price": 0.425,
+        "winner": false
+      },
+      {
+        "token_id": "103992866870416757660675566098099793898901226029886116996826576650568195286006",
+        "outcome": "Royals",
+        "price": 0.575,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  },
+  {
+    "id": "0xefb7a49f21744d9cdcb1f0c5a9abb58b3b54a5d81902721964a7fdd6a3d0dbde",
+    "title": "Red Sox vs. Astros",
+    "enable_order_book": 1,
+    "active": 1,
+    "closed": 0,
+    "archived": 0,
+    "accepting_orders": 1,
+    "accepting_order_timestamp": "2025-08-10T08:01:39Z",
+    "minimum_order_size": 5,
+    "minimum_tick_size": 0.01,
+    "condition_id": "0xefb7a49f21744d9cdcb1f0c5a9abb58b3b54a5d81902721964a7fdd6a3d0dbde",
+    "question_id": "0x226de0e9cae7567628c3749c42cb184363647494762c932221e6207c3dba4c09",
+    "question": "Red Sox vs. Astros",
+    "description": "In the upcoming MLB game, scheduled for August 11 at 8:10PM ET:\nIf the Boston Red Sox win, the market will resolve to “Red Sox”.\nIf the Houston Astros win, the market will resolve to “Astros”.\nIf the game is postponed, this market will remain open until the game has been completed.\nIf the game is canceled entirely, with no make-up game, this market will resolve 50-50.\nTo know when a postponed game will be played, please check the home team's schedule on MLB.com for the listed team and look for the game described as a makeup game.",
+    "market_slug": "mlb-bos-hou-2025-08-11",
+    "end_date_iso": "2025-08-19T00:00:00Z",
+    "game_start_time": "2025-08-12T00:10:00Z",
+    "seconds_delay": 3,
+    "fpmm": "0x4bC2d5681D7a8d5446133E0Ae801a3128e0642E3",
+    "maker_base_fee": 0,
+    "taker_base_fee": 0,
+    "notifications_enabled": 0,
+    "neg_risk": 0,
+    "neg_risk_market_id": "",
+    "neg_risk_request_id": "",
+    "icon": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "image": "https://polymarket-upload.s3.us-east-2.amazonaws.com/Repetitive-markets/MLB.jpg",
+    "rewards": {
+      "rates": null,
+      "min_size": 0,
+      "max_spread": 0
+    },
+    "is_50_50_outcome": 0,
+    "tokens": [
+      {
+        "token_id": "4728621438057361931930509952560015186577033969603357660567741344632512145270",
+        "outcome": "Red Sox",
+        "price": 0.615,
+        "winner": false
+      },
+      {
+        "token_id": "19484019927259588600552584762366992120741484315708290391262840444429976239392",
+        "outcome": "Astros",
+        "price": 0.385,
+        "winner": false
+      }
+    ],
+    "tags": [
+      "Sports",
+      "MLB",
+      "Games"
+    ]
+  }
+]

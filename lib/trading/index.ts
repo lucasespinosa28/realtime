@@ -20,7 +20,7 @@ if (!size) {
 }
 
 const signer = new Wallet(key);
-const clobClient = new ClobClient(host, 137, signer);
+export const clobClient = new ClobClient(host, 137, signer);
 const creds = await clobClient.deriveApiKey();
 
 const clienAuth = new ClobClient(host, 137, signer, creds, 2, address);
@@ -70,6 +70,18 @@ export async function getMarket(conditionId: string): Promise<Market> {
   }
 }
 
+export async function getMarkets(): Promise<Market[]> {
+  try {
+    const response = await clobClient.getMarkets();
+    // Adjust 'data' to the correct property containing the array of markets
+    return response.data as Market[];
+  } catch (error) {
+    polymarketAPILogger.error("Error getting markets: {error}", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}
 
 export async function placeOrder(asset: string, price: number) {
   // Ensure price has exactly two decimals

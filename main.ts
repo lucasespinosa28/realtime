@@ -38,28 +38,35 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
 
         if (storage.hasId(id)) {
             if (storage.get(id).status == "MATCHED" && storage.get(id).outcome == outcome) {
-                // Check if price dropped below 0.5 and sell if so
-                if (price < 0.50) {
-                    const book = await getBook(tokenId);
-                    const ask = book.asks.reverse()[1]; 
-                    const askPrice = parseFloat(ask.price);
-                    if (!book.asks.length || !book.bids.length) {
-                        appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
-                        return;
-                    }
-
-                    try {
-                        const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
-                        if (sellOrderResult.success) {
-                            appLogger.info("Sell order placed for condition {id} at price {price}", { id, price });
-                            // Update storage to reflect sell order - this prevents any future buying for this condition
-                            storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
+                // Check if price dropped below 0.5 and current time has minutes > 55
+                if (price < 0.51) {
+                    const currentTime = new Date();
+                    const minutes = currentTime.getMinutes();
+                    
+                    if (minutes > 55) {
+                        const book = await getBook(tokenId);
+                        const ask = book.asks.reverse()[1]; 
+                        const askPrice = parseFloat(ask.price);
+                        if (!book.asks.length || !book.bids.length) {
+                            appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
+                            return;
                         }
-                    } catch (error) {
-                        appLogger.error("Error placing sell order for condition {id}: {error}", {
-                            id,
-                            error: error instanceof Error ? error.message : String(error)
-                        });
+
+                        try {
+                            const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
+                            if (sellOrderResult.success) {
+                                appLogger.info("Sell order placed for condition {id} at price {price} (minutes: {minutes})", { id, price, minutes });
+                                // Update storage to reflect sell order - this prevents any future buying for this condition
+                                storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
+                            }
+                        } catch (error) {
+                            appLogger.error("Error placing sell order for condition {id}: {error}", {
+                                id,
+                                error: error instanceof Error ? error.message : String(error)
+                            });
+                        }
+                    } else {
+                        appLogger.info("Price below 0.5 but minutes ({minutes}) not > 55, skipping sell for condition {id}", { minutes, id });
                     }
                 }
             }

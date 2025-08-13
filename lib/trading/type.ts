@@ -46,3 +46,12 @@ export interface Market {
   tokens: MarketToken[];
   tags: string[];
 }
+
+export interface Order {
+  errorMsg: string;
+  orderID: string;
+  takingAmount: string
+  makding: string;
+  status: string;
+  success: boolean;
+}

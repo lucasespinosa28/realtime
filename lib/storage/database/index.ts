@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { DatabaseRecord, Order, Trade } from "./mode";
+import type { DatabaseRecord, Order, Trade } from "./model";
 import { dbLogger } from "../../../utils/logger";
 
 export class DatabaseManager {

@@ -22,9 +22,9 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         const tokenId = message.payload.asset;
         const price = message.payload.price;
 
-        if (storage.order.hasId(id)) {
+        if (storage.hasId(id)) {
             const order = await polymarket.getOrder(
-                storage.order.get(id)
+                storage.get(id).orderID
             );
             console.log(order);
         }
@@ -47,7 +47,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         } else {
             appLogger.warn("Invalid outcome value for pushTrade: {outcome}", { outcome: message.payload.outcome });
         }
-        if (message.payload.price > 0.9 && !storage.trades.hasId(message.payload.conditionId)) {
+        if (message.payload.price > 0.9 && !storage.hasId(message.payload.conditionId)) {
             const book = await getBook(tokenId);
 
             if (!book.asks.length || !book.bids.length) {
@@ -60,10 +60,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             //const askPrice = parseFloat(ask.price);
             const bidPrice = parseFloat(bid.price);
             if (bidPrice >= 0.88) {
-                if (!storage.order.hasId(id)) {
-                    appLogger.info(`Order not placed: another process already handled ${id}`);
-                    return;
-                }
                 const record = {
                     eventId: id,
                     coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
@@ -86,9 +82,9 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 const order = await postOrder(message.payload.asset, message.payload.price, instruction.size);
                 console.log({ order });
                 if (order.success) {
-                    storage.order.add(id, order.orderID);
+                    storage.add(id, {orderID: order.orderID,asset:tokenId,outcome:outcome,status:order.success});
                 }
-                storage.trades.add(id, true);
+                   storage.add(id, {orderID: order.orderID,asset:tokenId,outcome:outcome,status:false});
             }
         }
     }

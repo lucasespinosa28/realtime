@@ -36,12 +36,14 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             }
         }
 
-        if (storage.get(id).status == "MATCHED") {
-            console.log(`Order matched: ${eventSlug}`);
-        }
+        if (storage.hasId(id)) {
+            if (storage.get(id).status == "MATCHED") {
+                console.log(`Order matched: ${eventSlug}`);
+            }
 
-        if (storage.get(id).outcome == outcome) {
-            console.log(`Order outcome similar: ${eventSlug}`);
+            if (storage.get(id).outcome == outcome) {
+                console.log(`Order outcome similar: ${eventSlug}`);
+            }
         }
 
         databaseManager.createMarket({

@@ -5,7 +5,7 @@ import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
-import { getBook, placePolymarketOrder } from "./lib/trading";
+import { getBook, placePolymarketOrder, getOrder } from "./lib/trading";
 import { extractCoinFromEvent } from "./utils/time";
 import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/db";
 
@@ -22,11 +22,34 @@ setupMemoryMonitoring(60000, 100); // Monitor every minute, GC at 100MB
 setupGracefulShutdown();
 
 // Create cache manager instance
-const cacheManager = new CacheManager(32);
+const recordCache = new CacheManager(32);
+const orderCache = new CacheManager(1000);
 
 // Periodic cleanup without message throttling
 let lastCleanup = Date.now();
 const CLEANUP_INTERVAL = 60000; // Cleanup every minute
+
+setInterval(() => {
+    recordCache.performCleanup();
+    orderCache.performCleanup();
+}, CLEANUP_INTERVAL);
+
+// Call getOrder for each cached order ID every 5 minutes
+setInterval(async () => {
+    const orderIds = orderCache.getAllIds();
+    for (const orderId of orderIds) {
+        try {
+            const order = await getOrder(orderId);
+            console.log({order})
+            appLogger.info("Fetched order {orderId}: {order}", { orderId, order });
+        } catch (error) {
+            appLogger.error("Error fetching order {orderId}: {error}", {
+                orderId,
+                error: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+}, 5 * 60 * 1000); // Every 5 minutes
 
 // Map to store eventId -> recordId
 const eventIdToRecordId: Map<string, string> = new Map();
@@ -36,7 +59,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     // Periodic cleanup every minute 
     if (now - lastCleanup > CLEANUP_INTERVAL) {
         lastCleanup = now;
-        cacheManager.performCleanup();
+        recordCache.performCleanup();
     }
 
     if (!shouldProcessMessage(message)) {
@@ -60,7 +83,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         addTrade(id, side_, { price, size, timestamp, side });
 
         // Check if this is the first time we see this event at price > 0.9
-        if (price > 0.9 && !cacheManager.hasId(id)) {
+        if (price > 0.9 && !recordCache.hasId(id)) {
             const book = await getBook(tokenId);
 
             if (!book.asks.length || !book.bids.length) {
@@ -77,7 +100,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             const bidPrice = parseFloat(bid.price);
             if (bidPrice >= 0.85) {
                 // Double-check cache before placing order (race condition protection)
-                if (!cacheManager.checkAndAdd(id)) {
+                if (!recordCache.checkAndAdd(id)) {
                     appLogger.info(`Order not placed: another process already handled ${id}`);
                     return;
                 }

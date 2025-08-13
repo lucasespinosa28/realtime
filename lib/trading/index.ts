@@ -1,7 +1,8 @@
 import { ClobClient, OrderType, Side } from "@polymarket/clob-client";
 import { Wallet } from "ethers";
 import { polymarketAPILogger } from "../../utils/logger";
-import type { MarketWinner, Market } from "./type";
+import type { MarketWinner, Market, Order } from "./type";
+import { manageCacheAndAddId } from "../cache";
 
 const host = 'https://clob.polymarket.com';
 const key = process.env.PK;
@@ -97,7 +98,7 @@ export async function placeOrder(asset: string, price: number) {
     price = 0.90;
   }
   try {
-    const order = await clienAuth.createAndPostOrder(
+    const order:Order = await clienAuth.createAndPostOrder(
       {
         tokenID: asset,
         price: price,
@@ -108,6 +109,12 @@ export async function placeOrder(asset: string, price: number) {
       { tickSize: "0.01", negRisk: false },
       OrderType.GTC,
     );
+
+    // Save order ID in cache
+    if (order && order.orderID) {
+      manageCacheAndAddId(order.orderID);
+    }
+
     polymarketAPILogger.info("Order placed for {asset} at price {price}", {
       asset,
       price
@@ -172,3 +179,14 @@ export const getBuyedOrder = async (market: string) => {
     throw error;
   }
 };
+
+export const getOrder = async (orderId: string) => {
+  try {
+    return await clienAuth.getOrder(orderId);
+  } catch (error) {
+    polymarketAPILogger.error("Error getting order: {error}", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+}

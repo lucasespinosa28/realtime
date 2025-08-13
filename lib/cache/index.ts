@@ -68,6 +68,10 @@ export class CacheManager {
     get size(): number {
         return this.recentIds.size;
     }
+
+    getAllIds(): string[] {
+        return Array.from(this.recentIds);
+    }
 }
 
 // Export legacy functions for backward compatibility

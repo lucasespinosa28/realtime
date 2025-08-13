@@ -15,7 +15,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         if (!shouldProcessMessage(message, instruction.slug)) {
             return;
         }
-        appLogger.info("Processing message for instruction {slug}", { slug: instruction.slug });
 
         const id = message.payload.conditionId;
         const eventSlug = message.payload.eventSlug;

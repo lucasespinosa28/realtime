@@ -11,11 +11,12 @@ import { extractCoinFromEvent } from "./utils/time";
 
 const databaseManager = new DatabaseManager();
 const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
+
+
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
-            return;
+            continue;
         }
-
         const id = message.payload.conditionId;
         const title = message.payload.title;
         const eventSlug = message.payload.eventSlug;
@@ -25,13 +26,15 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         const timestamp = message.payload.timestamp;
         const size = message.payload.size;
         const side = message.payload.side;
-
         if (storage.hasId(id)) {
             if (storage.get(id).outcome === outcome) {
                 const orderId = storage.get(id).orderID;
-                const order = await polymarket.getOrder(orderId);
-                if (order.status === "MATCHED") {
-                    storage.add(id, { orderID: orderId, asset: tokenId, outcome: outcome, status: order.status });
+                // Only call getOrder if we have a valid orderID
+                if (orderId && orderId !== "") {
+                    const order = await polymarket.getOrder(orderId);
+                    if (order.status === "MATCHED") {
+                        storage.add(id, { orderID: orderId, asset: tokenId, outcome: outcome, status: order.status });
+                    }
                 }
             }
         }
@@ -42,10 +45,10 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 if (price < 0.51) {
                     const currentTime = new Date();
                     const minutes = currentTime.getMinutes();
-                    
+
                     if (minutes > 55) {
                         const book = await getBook(tokenId);
-                        const ask = book.asks.reverse()[1]; 
+                        const ask = book.asks.reverse()[1];
                         const askPrice = parseFloat(ask.price);
                         if (!book.asks.length || !book.bids.length) {
                             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
@@ -92,11 +95,16 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         }
         // Only buy if price > 0.90 and we haven't processed this condition yet
         if (price > 0.90 && !storage.hasId(id)) {
+            // Mark this condition as processed immediately to prevent duplicate orders
+            storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "processing" });
+
             const book = await getBook(tokenId);
 
             if (!book.asks.length || !book.bids.length) {
                 appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
-                return;
+                // Update status to failed since we couldn't place the order
+                storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
+                break; // Exit instruction loop since we processed this message
             }
             // const ask = book.asks.reverse()[0]; // ask price
             const bid = book.bids.reverse()[0]; // bid price
@@ -104,9 +112,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             //const askPrice = parseFloat(ask.price);
             const bidPrice = parseFloat(bid.price);
             if (bidPrice >= 0.88) {
-                // Mark this condition as processed immediately to prevent duplicate orders
-                storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "processing" });
-
                 const record = {
                     eventId: id,
                     coin: extractCoinFromEvent(eventSlug) ?? "Unknown",
@@ -145,6 +150,12 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         error: error instanceof Error ? error.message : String(error)
                     });
                 }
+                break; // Exit instruction loop since we successfully processed this message
+            } else {
+                // Bid price too low, mark as failed
+                storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
+                appLogger.info("Bid price {bidPrice} too low (< 0.88) for condition {id}", { bidPrice, id });
+                break; // Exit instruction loop since we processed this message
             }
         }
     }

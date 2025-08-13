@@ -1,4 +1,5 @@
 import { configure, getConsoleSink, getLogger } from "@logtape/logtape";
+import { getFileSink } from "@logtape/file";
 
 /**
  * Configure LogTape for the application
@@ -6,16 +7,20 @@ import { configure, getConsoleSink, getLogger } from "@logtape/logtape";
 export async function configureLogging() {
   await configure({
     sinks: { 
-      console: getConsoleSink()
+      console: getConsoleSink(),
+      file: getFileSink("logs/app.log", {
+        bufferSize: 8192,
+        flushInterval: 5000
+      })
     },
     loggers: [
-      { category: "polymarket", lowestLevel: "debug", sinks: ["console"] },
-      { category: "polymarket:app", lowestLevel: "info", sinks: ["console"] },
-      { category: "polymarket:websocket", lowestLevel: "warning", sinks: ["console"] },
-      { category: "polymarket:airtable", lowestLevel: "info", sinks: ["console"] },
-      { category: "polymarket:memory", lowestLevel: "info", sinks: ["console"] },
-      { category: "polymarket:scripts", lowestLevel: "info", sinks: ["console"] },
-      { category: "polymarket:db", lowestLevel: "info", sinks: ["console"] }
+      { category: "polymarket", lowestLevel: "debug", sinks: ["console", "file"] },
+      { category: "polymarket:app", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:websocket", lowestLevel: "warning", sinks: ["console", "file"] },
+      { category: "polymarket:airtable", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:memory", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:scripts", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:db", lowestLevel: "info", sinks: ["console", "file"] }
     ]
   });
 }

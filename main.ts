@@ -51,25 +51,26 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         const ask = book.asks.reverse()[1];
                         const askPrice = parseFloat(ask.price);
                         if (!book.asks.length || !book.bids.length) {
-                            appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
+                            appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}, title: ${title}`);
                             return;
                         }
 
                         try {
                             const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
                             if (sellOrderResult.success) {
-                                appLogger.info("Sell order placed for condition {id} at price {price} (minutes: {minutes})", { id, price, minutes });
+                                appLogger.info("Sell order placed for condition {id} at price {price} (minutes: {minutes}) title: {title}", { id, price, minutes, title });
                                 // Update storage to reflect sell order - this prevents any future buying for this condition
                                 storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
                             }
                         } catch (error) {
-                            appLogger.error("Error placing sell order for condition {id}: {error}", {
+                            appLogger.error("Error placing sell order for condition {id}: {error} title: {title}", {
                                 id,
+                                title,
                                 error: error instanceof Error ? error.message : String(error)
                             });
                         }
                     } else {
-                        appLogger.info("Price below 0.5 but minutes ({minutes}) not > 55, skipping sell for condition {id}", { minutes, id });
+                        appLogger.info("Price below 0.5 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title}", { minutes, id, title });
                     }
                 }
             }
@@ -91,7 +92,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 side: side
             });
         } else {
-            appLogger.warn("Invalid outcome value for pushTrade: {outcome}", { outcome: outcome });
+            appLogger.warn("Invalid outcome value for pushTrade: {outcome} title: {title}", { outcome: outcome, title });
         }
         // Only buy if price > 0.90 and we haven't processed this condition yet
         if (price > 0.90 && !storage.hasId(id)) {
@@ -101,7 +102,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             const book = await getBook(tokenId);
 
             if (!book.asks.length || !book.bids.length) {
-                appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
+                appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId} title: ${title}`);
                 // Update status to failed since we couldn't place the order
                 storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
                 break; // Exit instruction loop since we processed this message
@@ -138,15 +139,16 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                     // Update storage with the actual order details
                     if (order.success) {
                         storage.add(id, { orderID: order.orderID, asset: tokenId, outcome: outcome, status: order.status });
-                        appLogger.info("Order successfully placed for condition {id}", { id });
+                        appLogger.info("Order successfully placed for condition {id} title: {title}", { id, title });
                     } else {
                         storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
-                        appLogger.warn("Order placement failed for condition {id}", { id });
+                        appLogger.warn("Order placement failed for condition {id} title: {title}", { id, title });
                     }
                 } catch (error) {
                     storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "error" });
-                    appLogger.error("Error placing order for condition {id}: {error}", {
+                    appLogger.error("Error placing order for condition {id}: {error} title: {title}", {
                         id,
+                        title,
                         error: error instanceof Error ? error.message : String(error)
                     });
                 }
@@ -154,7 +156,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             } else {
                 // Bid price too low, mark as failed
                 storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
-                appLogger.info("Bid price {bidPrice} too low (< 0.88) for condition {id}", { bidPrice, id });
+                appLogger.info("Bid price {bidPrice} too low (< 0.88) for condition {id} title: {title}", { bidPrice, id, title });
                 break; // Exit instruction loop since we processed this message
             }
         }

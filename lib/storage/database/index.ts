@@ -112,7 +112,7 @@ export class DatabaseManager {
       'UPDATE markets SET "order" = ? WHERE id = ?',
       [JSON.stringify(orders), marketId]
     );
-    dbLogger.info(`Order added to market ${marketId}`);
+    // dbLogger.info(`Order added to market ${marketId}`);
   }
 
   // PUSH - Add trade to market's Up/Down side trades array
@@ -136,7 +136,7 @@ export class DatabaseManager {
       `UPDATE markets SET ${side} = ? WHERE id = ?`,
       [JSON.stringify(market[side]), marketId]
     );
-    dbLogger.info(`Trade added to market ${marketId} ${side} side`);
+    // dbLogger.info(`Trade added to market ${marketId} ${side} side`);
   }
 
   // PUSH - Set assetId for a market side (only if not already set)
@@ -164,7 +164,7 @@ export class DatabaseManager {
       `UPDATE markets SET ${side} = ? WHERE id = ?`,
       [JSON.stringify(market[side]), marketId]
     );
-    dbLogger.info(`AssetId set for market ${marketId} ${side} side`);
+    // dbLogger.info(`AssetId set for market ${marketId} ${side} side`);
   }
 }
 

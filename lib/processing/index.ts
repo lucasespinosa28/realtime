@@ -1,17 +1,12 @@
 import type { Message } from "../websocket";
 import { isTimeMatch } from "../../utils/time";
 
-
-const text = process.env.SLUG;
-if (!text) {
-  throw new Error('Missing SLUG environment variable');
-}
 /**
  * Checks if the message should be processed
  */
-export const shouldProcessMessage = (message: Message): boolean => {
+export const shouldProcessMessage = (message: Message, slug: string): boolean => {
     // Early return if not relevant message type
-    if (!message?.payload?.slug?.includes(text)) {
+    if (!message?.payload?.slug?.includes(slug)) {
         return false;
     }
 

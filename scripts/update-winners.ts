@@ -1,5 +1,5 @@
 import { getAllRecords, updateWinner } from "../lib/storage";
-import { getWinner } from "../lib/trading";
+import { getWinner } from "../lib/trading/old/getWinner";
 import { configureLogging, scriptsLogger } from "../utils/logger";
 
 await configureLogging();

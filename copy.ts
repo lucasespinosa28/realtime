@@ -5,10 +5,11 @@ import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
-import { getBook, placePolymarketOrder } from "./lib/trading";
+import { getBook } from "./lib/trading/getBook";
+import { placePolymarketOrder } from "./lib/trading/placePolymarketOrder";
 import { extractCoinFromEvent } from "./utils/time";
-import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/db";
-import type { FullMarketRecord } from "./lib/storage/types";
+import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/database";
+import type { FullMarketRecord } from "./lib/storage/model";
 
 const file = Bun.file("data/markets_with_tag_sports.json");
 const sportsMarkets = await file.json();

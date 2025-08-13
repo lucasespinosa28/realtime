@@ -5,9 +5,11 @@ import { configureLogging, appLogger, airtableLogger } from "./utils/logger";
 import { CacheManager } from "./lib/cache";
 import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
-import { getBook, placePolymarketOrder, getOrder } from "./lib/trading";
+import { getBook } from "./lib/trading/getBook";
+import { placePolymarketOrder } from "./lib/trading/placePolymarketOrder";
+import { getOrder } from "./lib/trading/old/getOrder";
 import { extractCoinFromEvent } from "./utils/time";
-import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/db";
+import { createMarket, updateAssetId, init, addTrade } from "./lib/storage/database";
 
 
 

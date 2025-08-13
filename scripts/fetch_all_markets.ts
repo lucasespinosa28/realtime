@@ -1,7 +1,7 @@
-import { createFullMarket, init } from "../lib/storage/db";
-import type { FullMarketRecord } from "../lib/storage/types";
+import { createFullMarket, init } from "../lib/storage/database";
+import type { FullMarketRecord } from "../lib/storage/model";
 import { clobClient } from "../lib/trading";
-  const { saveLatestCursor } = await import("../lib/storage/db");
+  const { saveLatestCursor } = await import("../lib/storage/database");
   
 async function fetchAllMarketsAndSave() {
   // Initialize DB (create tables if needed)

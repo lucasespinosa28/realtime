@@ -1,5 +1,5 @@
 import Airtable from "airtable";
-import type { TradeRecord, TradeRecordWithId } from "./types";
+import type { TradeRecord, TradeRecordWithId } from "./model";
 
 
 const baseId = process.env.BASE_ID;

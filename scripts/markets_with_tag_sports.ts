@@ -1,4 +1,4 @@
-import { getMarketsWithTagSports } from "../lib/storage/db";
+import { getMarketsWithTagSports } from "../lib/storage/database";
 import { writeFileSync } from "fs";
 
 async function main() {

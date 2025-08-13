@@ -1,5 +1,5 @@
 import { getAllRecords, updateBuyed, updatePrice } from "../lib/storage";
-import { getBuyedOrder } from "../lib/trading";
+import { getBuyedOrder } from "../lib/trading/old/getBuyedOrder";
 import { configureLogging, scriptsLogger } from "../utils/logger";
 
 await configureLogging();

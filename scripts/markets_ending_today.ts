@@ -1,4 +1,4 @@
-import { getMarketsEndingSoon } from "../lib/storage/db";
+import { getMarketsEndingSoon } from "../lib/storage/database";
 import { writeFileSync } from "fs";
 
 function getTodayParts() {

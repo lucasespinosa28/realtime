@@ -1,5 +1,5 @@
 import { getAllRecords, updateAssetAndSizes } from "../lib/storage";
-import { getMarket } from "../lib/trading";
+import { getMarket } from "../lib/trading/old/getMarket";
 import { configureLogging, scriptsLogger } from "../utils/logger";
 
 await configureLogging();

@@ -22,8 +22,7 @@ if (!size) {
 
 const signer = new Wallet(key);
 export const clobClient = new ClobClient(host, 137, signer);
-const creds = await clobClient.deriveApiKey();
-
+export const creds = await clobClient.deriveApiKey();
 const clienAuth = new ClobClient(host, 137, signer, creds, 2, address);
 
 

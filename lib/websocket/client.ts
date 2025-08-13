@@ -1,4 +1,3 @@
-import WebSocket from "isomorphic-ws";
 import type { SubscriptionMessage, Message } from "./model";
 import { ConnectionStatus } from "./model";
 import { websocketLogger } from "../../utils/logger";
@@ -109,7 +108,6 @@ export class RealTimeDataClient {
             this.ws.onmessage = this.onMessage;
             this.ws.onclose = this.onClose;
             this.ws.onerror = this.onError;
-            this.ws.pong = this.onPong;
         }
         return this;
     }
@@ -127,7 +125,6 @@ export class RealTimeDataClient {
             this.ws.onmessage = null;
             this.ws.onclose = null;
             this.ws.onerror = null;
-            this.ws.pong = null;
             if (this.ws.readyState === WebSocket.OPEN) {
                 this.ws.close();
             }
@@ -147,18 +144,11 @@ export class RealTimeDataClient {
     };
 
     /**
-     * Handles WebSocket 'pong' event. Continues the ping cycle.
-     */
-    private onPong = async () => {
-        this.pingTimeout = setTimeout(() => this.ping(), this.pingInterval);
-    };
-
-    /**
      * Handles WebSocket errors. Logs the error and attempts reconnection if `autoReconnect` is enabled.
      * @param err Error object describing the issue.
      */
-    private onError = async (err: ErrorEvent) => {
-        websocketLogger.error("WebSocket error: {error}", { error: err.message || err.type });
+    private onError = () => {
+        websocketLogger.error("WebSocket error occurred");
         if (this.autoReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
             this.reconnectAttempts++;
             const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000); // Exponential backoff, max 30s
@@ -198,12 +188,7 @@ export class RealTimeDataClient {
                 readyState: this.ws.readyState 
             });
         }
-
-        this.ws.send("ping", (err: Error | undefined) => {
-            if (err) {
-                websocketLogger.error("Ping error: {error}", { error: err.message });
-            }
-        });
+        this.ws.send("ping");
     };
 
     /**
@@ -244,12 +229,7 @@ export class RealTimeDataClient {
                 readyState: this.ws.readyState 
             });
         }
-        this.ws.send(JSON.stringify({ action: "subscribe", ...msg }), (err?: Error) => {
-            if (err) {
-                websocketLogger.error("Subscribe error: {error}", { error: err.message });
-                this.ws.close();
-            }
-        });
+        this.ws.send(JSON.stringify({ action: "subscribe", ...msg }));
     }
 
     /**
@@ -263,12 +243,7 @@ export class RealTimeDataClient {
             });
         }
         websocketLogger.debug("Unsubscribing from: {topic}", { topic: msg.subscriptions[0]?.topic });
-        this.ws.send(JSON.stringify({ action: "unsubscribe", ...msg }), (err?: Error) => {
-            if (err) {
-                websocketLogger.error("Unsubscribe error: {error}", { error: err.message });
-                this.ws.close();
-            }
-        });
+        this.ws.send(JSON.stringify({ action: "unsubscribe", ...msg }));
     }
 
     /**

@@ -5,21 +5,13 @@ import { polymarketAPILogger } from "../../utils/logger";
 
   const sellOrder = async (asset: string, price: number, size: number): Promise<Order> => {
   const fixedPrice = Number(price.toFixed(2));
-  if (fixedPrice !== price) {
-    price = fixedPrice;
-  }
-  if ([0.96, 0.97, 0.98, 0.99].includes(price)) {
-    price = 0.95;
-  }
-  if ([0.90, 0.91, 0.92, 0.93, 0.94].includes(price)) {
-    price = 0.90;
-  }
+
   try {
     const order: Order = await polymarket.createAndPostOrder(
       {
         tokenID: asset,
-        price: price,
-        side: Side.BUY,
+        price: fixedPrice,
+        side: Side.SELL,
         size: size,
         feeRateBps: 0,
       },

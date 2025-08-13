@@ -3,7 +3,7 @@ import { shouldProcessMessage } from "./lib/processing";
 import { createRecord } from "./lib/storage";
 import { DatabaseManager } from "./lib/storage/database";
 import storage from "./lib/storage/memory";
-import { getBook, polymarket, postOrder } from "./lib/trading";
+import { getBook, polymarket, postOrder, sellOrder } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { airtableLogger, appLogger, configureLogging } from "./utils/logger";
@@ -37,12 +37,31 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         }
 
         if (storage.hasId(id)) {
-            if (storage.get(id).status == "MATCHED") {
-                console.log(`Order matched: ${eventSlug}`);
-            }
+            if (storage.get(id).status == "MATCHED" && storage.get(id).outcome == outcome) {
+                // Check if price dropped below 0.5 and sell if so
+                if (price < 0.50) {
+                    const book = await getBook(tokenId);
+                    const ask = book.asks.reverse()[1]; 
+                    const askPrice = parseFloat(ask.price);
+                    if (!book.asks.length || !book.bids.length) {
+                        appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}`);
+                        return;
+                    }
 
-            if (storage.get(id).outcome == outcome) {
-                console.log(`Order outcome similar: ${eventSlug}`);
+                    try {
+                        const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
+                        if (sellOrderResult.success) {
+                            appLogger.info("Sell order placed for condition {id} at price {price}", { id, price });
+                            // Update storage to reflect sell order - this prevents any future buying for this condition
+                            storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
+                        }
+                    } catch (error) {
+                        appLogger.error("Error placing sell order for condition {id}: {error}", {
+                            id,
+                            error: error instanceof Error ? error.message : String(error)
+                        });
+                    }
+                }
             }
         }
 
@@ -64,6 +83,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         } else {
             appLogger.warn("Invalid outcome value for pushTrade: {outcome}", { outcome: outcome });
         }
+        // Only buy if price > 0.90 and we haven't processed this condition yet
         if (price > 0.90 && !storage.hasId(id)) {
             const book = await getBook(tokenId);
 
@@ -101,8 +121,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 }
 
                 try {
-                    const order = await postOrder(tokenId, price, size);
-                    console.log({ order });
+                    const order = await postOrder(tokenId, price, instruction.size);
 
                     // Update storage with the actual order details
                     if (order.success) {

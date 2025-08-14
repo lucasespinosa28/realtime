@@ -20,9 +20,9 @@ import { polymarketAPILogger } from "../../utils/logger";
     );
 
 
-    polymarketAPILogger.info("Order placed for {asset} at price {price}", {
+    polymarketAPILogger.info("Sell order placed for {asset} at price {price}", {
       asset,
-      price
+      price: fixedPrice
     });
 
     return order;

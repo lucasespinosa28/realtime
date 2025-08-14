@@ -52,7 +52,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "SELLING" });
                         
                         const book = await getBook(tokenId);
-                        const ask = book.asks.reverse()[1];
+                        const ask = book.asks[0];
                         const askPrice = parseFloat(ask.price);
                         if (!book.asks.length || !book.bids.length) {
                             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}, title: ${title}`);
@@ -64,7 +64,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                         try {
                             const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
                             if (sellOrderResult.success) {
-                                appLogger.info("Sell order placed for condition {id} at price {price} (minutes: {minutes}) title: {title}", { id, price, minutes, title });
+                                appLogger.info("Sell order placed for condition {id} at price {askPrice} (minutes: {minutes}) title: {title}", { id, askPrice, minutes, title });
                                 // Update storage to reflect sell order - this prevents any future selling for this condition
                                 storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
                             } else {
@@ -160,7 +160,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                     // Update storage with the actual order details
                     if (order.success) {
                         storage.add(id, { orderID: order.orderID, asset: tokenId, outcome: outcome, status: order.status });
-                        appLogger.info("Order successfully placed for condition {id} title: {title}", { id, title });
+                        appLogger.info("Order successfully placed for condition {id} title: {title}", { id, title});
                     } else {
                         storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
                         appLogger.warn("Order placement failed for condition {id} title: {title}", { id, title });

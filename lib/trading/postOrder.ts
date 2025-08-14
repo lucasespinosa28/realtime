@@ -40,7 +40,7 @@ const postOrder = async (asset: string, price: number, size: number): Promise<Or
     );
 
 
-    polymarketAPILogger.info("Order placed for {asset} at price {price}", {
+    polymarketAPILogger.info("Buy order placed for {asset} at price {price}", {
       asset,
       price
     });

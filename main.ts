@@ -105,8 +105,18 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         } else {
             appLogger.warn("Invalid outcome value for pushTrade: {outcome} title: {title}", { outcome: outcome, title });
         }
-        // Only buy if price > 0.90 and we haven't processed this condition yet
-        if (price > 0.90 && !storage.hasId(id)) {
+        // Only buy if price > 0.90 and we haven't successfully processed this condition yet
+        // Allow retry if previous attempt failed due to low bid price
+        const shouldAttemptOrder = price > 0.90 && (!storage.hasId(id) || 
+            (storage.hasId(id) && storage.get(id).status === "failed"));
+        
+        if (shouldAttemptOrder) {
+            // Check if this is a retry attempt
+            const isRetry = storage.hasId(id) && storage.get(id).status === "failed";
+            if (isRetry) {
+                appLogger.info("Retrying order for condition {id} title: {title} (previous attempt failed due to low bid price)", { id, title });
+            }
+            
             // Mark this condition as processed immediately to prevent duplicate orders
             storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "processing" });
 
@@ -165,7 +175,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                 }
                 break; // Exit instruction loop since we successfully processed this message
             } else {
-                // Bid price too low, mark as failed
+                // Bid price too low, mark as failed (will retry if bid price improves)
                 storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
                 appLogger.info("Bid price {bidPrice} too low (< 0.88) for condition {id} title: {title}", { bidPrice, id, title });
                 break; // Exit instruction loop since we processed this message

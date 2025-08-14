@@ -42,16 +42,22 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         if (storage.hasId(id)) {
             if (storage.get(id).status == "MATCHED" && storage.get(id).outcome == outcome) {
                 // Check if price dropped below 0.5 and current time has minutes > 55
-                if (price < 0.51) {
+                // Only proceed if we haven't already sold this position
+                if (price < 0.51 && storage.get(id).status !== "SOLD") {
                     const currentTime = new Date();
                     const minutes = currentTime.getMinutes();
 
                     if (minutes > 55) {
+                        // Mark as processing sell to prevent duplicate sell orders
+                        storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "SELLING" });
+                        
                         const book = await getBook(tokenId);
                         const ask = book.asks.reverse()[1];
                         const askPrice = parseFloat(ask.price);
                         if (!book.asks.length || !book.bids.length) {
                             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId}, title: ${title}`);
+                            // Revert status back to MATCHED since sell failed
+                            storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "MATCHED" });
                             return;
                         }
 
@@ -59,8 +65,11 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                             const sellOrderResult = await sellOrder(tokenId, askPrice, instruction.size);
                             if (sellOrderResult.success) {
                                 appLogger.info("Sell order placed for condition {id} at price {price} (minutes: {minutes}) title: {title}", { id, price, minutes, title });
-                                // Update storage to reflect sell order - this prevents any future buying for this condition
+                                // Update storage to reflect sell order - this prevents any future selling for this condition
                                 storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
+                            } else {
+                                // Sell order failed, revert status back to MATCHED
+                                storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "MATCHED" });
                             }
                         } catch (error) {
                             appLogger.error("Error placing sell order for condition {id}: {error} title: {title}", {
@@ -68,6 +77,8 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
                                 title,
                                 error: error instanceof Error ? error.message : String(error)
                             });
+                            // Revert status back to MATCHED since sell failed
+                            storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "MATCHED" });
                         }
                     } else {
                         appLogger.info("Price below 0.5 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title}", { minutes, id, title });

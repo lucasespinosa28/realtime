@@ -101,10 +101,17 @@ const handleSell = async (id: string, tokenId: string, outcome: string, title: s
 const lastBuy = async () => {
     for (let index = 0; index < eventsTokens.length; index++) {
         const token = eventsTokens[index];
+        
+        // Check if we already processed this token
+        if (temp.includes(token)) {
+            appLogger.info("Token {token} already processed, skipping", { token });
+            continue;
+        }
+        
         const book = await getBook(token);
         if (!book.asks.length || !book.bids.length) {
             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${token}`);
-            return; // Exit instruction loop since we processed this message
+            continue; // Continue to next token instead of returning
         }
         const askPrice = parseFloat(book.asks.reverse()[0].price);
         const order: Order = await polymarket.createAndPostOrder(
@@ -120,6 +127,8 @@ const lastBuy = async () => {
         );
         if (order.success) {
             appLogger.info("Order successfully placed for {token}", { token });
+            // Add to temp array to prevent duplicate orders
+            temp.push(token);
         } else {
             appLogger.warn("Order placement failed for {token}", { token });
         }
@@ -152,14 +161,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
 
         }
         if (price > 95 && minutes == 59) {
-            for (const tempId of temp) {
-                for (const event of eventsTokens) {
-                    if (tempId === event) {
-                        return;
-                    }
-                }
-            }
-            temp.push(tokenId)
             eventsTokens.push(tokenId)
         }
     }

@@ -18,9 +18,9 @@ export class DatabaseManager {
     this.db.run(
       `CREATE TABLE IF NOT EXISTS trades (
           row_id INTEGER PRIMARY KEY AUTOINCREMENT,
-          id TEXT NOT NULL,
+          asset TEXT NOT NULL,
           outcome TEXT NOT NULL,
-          market TEXT NOT NULL,
+          conditionId TEXT NOT NULL,
           price REAL NOT NULL,
           size REAL NOT NULL,
           side TEXT NOT NULL,
@@ -31,8 +31,8 @@ export class DatabaseManager {
     // Create buy orders table
     this.db.run(
       `CREATE TABLE IF NOT EXISTS buy_orders (
-          id TEXT PRIMARY KEY,
-          market TEXT NOT NULL,
+          asset TEXT PRIMARY KEY,
+          conditionId TEXT NOT NULL,
           price REAL NOT NULL,
           size REAL NOT NULL,
           side TEXT NOT NULL,
@@ -43,8 +43,8 @@ export class DatabaseManager {
     // Create sell orders table
     this.db.run(
       `CREATE TABLE IF NOT EXISTS sell_orders (
-          id TEXT PRIMARY KEY,
-          market TEXT NOT NULL,
+          asset TEXT PRIMARY KEY,
+          conditionId TEXT NOT NULL,
           price REAL NOT NULL,
           size REAL NOT NULL,
           side TEXT NOT NULL,
@@ -56,12 +56,12 @@ export class DatabaseManager {
   }
 
   // TRADE OPERATIONS
-  getTrade(id: string): Trade | null {
-    const row = this.db.query("SELECT * FROM trades WHERE id = ? ORDER BY row_id DESC LIMIT 1").get(id) as { 
+  getTrade(asset: string): Trade | null {
+    const row = this.db.query("SELECT * FROM trades WHERE asset = ? ORDER BY row_id DESC LIMIT 1").get(asset) as { 
       row_id: number;
-      id: string; 
+      asset: string; 
       outcome: string;
-      market: string;
+      conditionId: string;
       price: number;
       size: number;
       side: string;
@@ -71,9 +71,9 @@ export class DatabaseManager {
     if (!row) return null;
 
     return {
-      id: row.id,
+      asset: row.asset,
       outcome: row.outcome,
-      market: row.market,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,
@@ -81,12 +81,12 @@ export class DatabaseManager {
     };
   }
 
-  getAllTrades(id: string): Trade[] {
-    const rows = this.db.query("SELECT * FROM trades WHERE id = ? ORDER BY row_id ASC").all(id) as { 
+  getAllTrades(asset: string): Trade[] {
+    const rows = this.db.query("SELECT * FROM trades WHERE asset = ? ORDER BY row_id ASC").all(asset) as { 
       row_id: number;
-      id: string; 
+      asset: string; 
       outcome: string;
-      market: string;
+      conditionId: string;
       price: number;
       size: number;
       side: string;
@@ -94,9 +94,9 @@ export class DatabaseManager {
     }[];
 
     return rows.map(row => ({
-      id: row.id,
+      asset: row.asset,
       outcome: row.outcome,
-      market: row.market,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,
@@ -106,16 +106,16 @@ export class DatabaseManager {
 
   setTrade(trade: Trade): void {
     this.db.run(
-      "INSERT INTO trades (id, outcome, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      [trade.id, trade.outcome, trade.market, trade.price, trade.size, trade.side, trade.timestamp]
+      "INSERT INTO trades (asset, outcome, conditionId, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [trade.asset, trade.outcome, trade.conditionId, trade.price, trade.size, trade.side, trade.timestamp]
     );
   }
 
   // BUY OPERATIONS
-  getBuy(id: string): Buy | null {
-    const row = this.db.query("SELECT * FROM buy_orders WHERE id = ?").get(id) as { 
-      id: string; 
-      market: string;
+  getBuy(asset: string): Buy | null {
+    const row = this.db.query("SELECT * FROM buy_orders WHERE asset = ?").get(asset) as { 
+      asset: string; 
+      conditionId: string;
       price: number;
       size: number;
       side: "BUY";
@@ -125,8 +125,8 @@ export class DatabaseManager {
     if (!row) return null;
 
     return {
-      id: row.id,
-      market: row.market,
+      asset: row.asset,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,
@@ -136,15 +136,15 @@ export class DatabaseManager {
 
   setBuy(buy: Buy): void {
     this.db.run(
-      "INSERT OR REPLACE INTO buy_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-      [buy.id, buy.market, buy.price, buy.size, buy.side, buy.timestamp]
+      "INSERT OR REPLACE INTO buy_orders (asset, conditionId, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+      [buy.asset, buy.conditionId, buy.price, buy.size, buy.side, buy.timestamp]
     );
   }
 
-  getAllBuys(id: string): Buy[] {
-    const rows = this.db.query("SELECT * FROM buy_orders WHERE id = ?").all(id) as { 
-      id: string; 
-      market: string;
+  getAllBuys(asset: string): Buy[] {
+    const rows = this.db.query("SELECT * FROM buy_orders WHERE asset = ?").all(asset) as { 
+      asset: string; 
+      conditionId: string;
       price: number;
       size: number;
       side: "BUY";
@@ -152,8 +152,8 @@ export class DatabaseManager {
     }[];
 
     return rows.map(row => ({
-      id: row.id,
-      market: row.market,
+      asset: row.asset,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,
@@ -162,10 +162,10 @@ export class DatabaseManager {
   }
 
   // SELL OPERATIONS
-  getSell(id: string): Sell | null {
-    const row = this.db.query("SELECT * FROM sell_orders WHERE id = ?").get(id) as { 
-      id: string; 
-      market: string;
+  getSell(asset: string): Sell | null {
+    const row = this.db.query("SELECT * FROM sell_orders WHERE asset = ?").get(asset) as { 
+      asset: string; 
+      conditionId: string;
       price: number;
       size: number;
       side: "SELL";
@@ -175,8 +175,8 @@ export class DatabaseManager {
     if (!row) return null;
 
     return {
-      id: row.id,
-      market: row.market,
+      asset: row.asset,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,
@@ -186,15 +186,15 @@ export class DatabaseManager {
 
   setSell(sell: Sell): void {
     this.db.run(
-      "INSERT OR REPLACE INTO sell_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-      [sell.id, sell.market, sell.price, sell.size, sell.side, sell.timestamp]
+      "INSERT OR REPLACE INTO sell_orders (asset, conditionId, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+      [sell.asset, sell.conditionId, sell.price, sell.size, sell.side, sell.timestamp]
     );
   }
 
-  getAllSells(id: string): Sell[] {
-    const rows = this.db.query("SELECT * FROM sell_orders WHERE id = ?").all(id) as { 
-      id: string; 
-      market: string;
+  getAllSells(asset: string): Sell[] {
+    const rows = this.db.query("SELECT * FROM sell_orders WHERE asset = ?").all(asset) as { 
+      asset: string; 
+      conditionId: string;
       price: number;
       size: number;
       side: "SELL";
@@ -202,8 +202,8 @@ export class DatabaseManager {
     }[];
 
     return rows.map(row => ({
-      id: row.id,
-      market: row.market,
+      asset: row.asset,
+      conditionId: row.conditionId,
       price: row.price,
       size: row.size,
       side: row.side,

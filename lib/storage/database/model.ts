@@ -1,7 +1,7 @@
 export interface Trade {
-    id: string;
+    asset: string;
     outcome: string;
-    market: string;
+    conditionId: string;
     price: number;
     size: number;
     side: string;
@@ -9,8 +9,8 @@ export interface Trade {
 }
 
 export interface Buy {
-    id: string;
-    market: string;
+    asset: string;
+    conditionId: string;
     price: number;
     size: number;
     side: "BUY";
@@ -18,8 +18,8 @@ export interface Buy {
 }
 
 export interface Sell {
-    id: string;
-    market: string;
+    asset: string;
+    conditionId: string;
     price: number;
     size: number;
     side: "SELL";

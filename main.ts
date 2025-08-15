@@ -1,225 +1,293 @@
 import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
-import { eventsTokens, handleId, storage } from "./lib/storage/memory";
+import { storage } from "./lib/storage/memory";
 import { getBook, polymarket, postOrder, priceHandler, sellOrder } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 
-
 const database = new DatabaseManager();
 
-const updateOrder = async (id: string, tokenId: string, outcome: string,timestamp:number,marketId:string) => {
-    const storedOrder = storage.get(id);
+// Constants for trading rules
+const TRADING_RULES = {
+    BUY_PRICE_THRESHOLD: 0.90,
+    MIN_BID_PRICE: 0.88,
+    SELL_PRICE_THRESHOLD: 0.51,
+    STOP_LOSS_MINUTES: 55
+} as const;
 
-    // Skip if order is already matched or if outcome doesn't match
+// Types for better clarity
+interface TradeData {
+    conditionId: string;
+    asset: string;
+    title: string;
+    outcome: string;
+    price: number;
+    timestamp: number;
+    side: string;
+    size: number;
+}
+
+/**
+ * Checks if a placed buy order has been matched
+ */
+async function checkOrderStatus(conditionId: string, asset: string, outcome: string, timestamp: number): Promise<void> {
+    const storedOrder = storage.get(asset);
+    // Skip if already matched or outcome doesn't match
     if (storedOrder.status === "MATCHED" || storedOrder.outcome !== outcome) {
         return;
     }
-
     const orderId = storedOrder.orderID;
-    // Only call getOrder if we have a valid orderID and status is not already MATCHED
-    if (orderId && orderId !== "") {
+    if (!orderId) {
+        return;
+    }
+    try {
         const order = await polymarket.getOrder(orderId);
         if (order.status === "MATCHED") {
-            appLogger.info("Order {orderId} for asset {id} matched with outcome {outcome}", {
-                orderId,
-                id,
+            appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
+                conditionId,
                 outcome
             });
+            // Record matched buy order in database
             database.setBuy({
-                id: tokenId,
-                market: marketId,
+                asset: asset,
+                conditionId: conditionId,
                 price: Number(order.price),
                 size: Number(order.size_matched),
                 side: "BUY",
                 timestamp: timestamp
-            })
-            // Update storage with matched status to avoid future getOrder calls
-            storage.add(id, { orderID: orderId, asset: tokenId, outcome: outcome, status: "MATCHED" });
-        }
-    }
-}
-
-
-const buyOrder = async (id: string, tokenId: string, price: number, size: number, title: string, outcome: string) => {
-    const order = await postOrder(tokenId, price, size, title, outcome);
-    // Update storage with the actual order details (overwriting the "processing" status)
-    if (order.success) {
-        storage.add(id, { orderID: order.orderID, asset: tokenId, outcome: outcome, status: order.status });
-        appLogger.info("Order successfully placed for asset {id} title: {title}", { id, title });
-    } else {
-        storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
-        appLogger.warn("Order placement failed for asset  {id} title: {title}", { id, title });
-    }
-}
-
-const handleBuy = async (id: string, tokenId: string, price: number, size: number, minutes: number, title: string, outcome: string) => {
-    const book = await getBook(tokenId);
-    if (!book.asks.length || !book.bids.length) {
-        appLogger.warn(`Order not placed: empty asks or bids for tokenId ${tokenId} title: ${title}`);
-        return; // Exit instruction loop since we processed this message
-    }
-    const bidPrice = parseFloat(book.bids.reverse()[0].price);
-    if (bidPrice >= 0.88) {
-        try {
-
-            await buyOrder(id, tokenId, priceHandler(price), size, title, outcome)
-        } catch (error) {
-            appLogger.error("Error placing order for asset {id}: {error} title: {title}", {
-                id,
-                title,
-                error: error instanceof Error ? error.message : String(error)
+            });
+            // Update storage with matched status
+            storage.add(asset, { 
+                orderID: orderId, 
+                asset: asset, 
+                outcome: outcome, 
+                status: "MATCHED" 
             });
         }
-        return; // Exit instruction loop since we successfully processed this message
-    } else {
-        // Bid price too low, mark as failed (will retry if bid price improves)
-        appLogger.info("Bid price {bidPrice} too low (< 0.88) for asset {id} title: {title}", { bidPrice, id, title });
-        return; // Exit instruction loop since we processed this message
+    } catch (error) {
+        appLogger.error("Error checking order status for {conditionId}: {error}", {
+            conditionId,
+            error: error instanceof Error ? error.message : String(error)
+        });
     }
 }
 
-const handleSell = async (id: string, tokenId: string, outcome: string, title: string, minutes: number, size: number, price: number, marketId:string,timestamp:number) => {
-    // Debug: Log the price value being checked
-
-    const buyOrder = storage.get(handleId("buy", id));
-    if (!buyOrder) {
-        appLogger.warn("No buy order found for asset {id}, cannot sell", { id });
-        return;
-    }
-
-    if (buyOrder.status !== "MATCHED") {
-        appLogger.info("Buy order status is {status}, not MATCHED, skipping sell for asset {id}", { status: buyOrder.status, id });
-        return;
-    }
-
-    // Check if price dropped below 0.51 and current time has minutes > 55
-    if (price < 0.51 && minutes > 55) {
-        try {
-            if (!storage.hasId(handleId("sell", id))) {
-                const sellOrderResult = await sellOrder(tokenId, size, title, outcome);
-                if (sellOrderResult.success) {
-                    database.setSell({
-                        id: tokenId,
-                        market: marketId,
-                        price: price,
-                        size: size,
-                        side: "SELL",
-                        timestamp: timestamp
-                    })
-                    appLogger.info("STOP LOSS: Sell order placed for asset {id} at price {price} (minutes: {minutes}) title: {title}", { id, price, minutes, title });
-                    // Update storage to reflect sell order - this prevents any future selling for this asset
-                    storage.add(handleId("sell", id), { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
-                } else {
-                    appLogger.warn("Sell order failed for asset {id} title: {title}", { id, title });
-                }
-            } else {
-                appLogger.info("Sell order already exists for asset {id}", { id });
-            }
-        } catch (error) {
-            appLogger.error("Error placing STOP LOSS sell order for asset {id}: {error} title: {title}", {
-                id,
-                title,
-                error: error instanceof Error ? error.message : String(error)
+/**
+ * Places a buy order for a given asset
+ */
+async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
+    try {
+        const order = await postOrder(
+            tradeData.asset, 
+            priceHandler(tradeData.price), 
+            tradeData.size, 
+            tradeData.title, 
+            tradeData.outcome
+        );
+        if (order.success) {
+            // Record posted order in database
+            database.setBuy({
+                asset: tradeData.asset,
+                conditionId: tradeData.conditionId,
+                price: priceHandler(tradeData.price),
+                size: tradeData.size,
+                side: "BUY",
+                timestamp: tradeData.timestamp
             });
+            // Update storage with order details
+            storage.add(tradeData.asset, { 
+                orderID: order.orderID, 
+                asset: tradeData.asset, 
+                outcome: tradeData.outcome, 
+                status: order.status 
+            });
+            appLogger.info("Buy order placed for {title} at price {price}", {
+                title: tradeData.title,
+                price: priceHandler(tradeData.price)
+            });
+            return true;
+        } else {
+            // Mark as failed
+            storage.add(tradeData.asset, { 
+                orderID: "", 
+                asset: tradeData.asset, 
+                outcome: tradeData.outcome, 
+                status: "failed" 
+            });
+            appLogger.warn("Buy order failed for {title}", { title: tradeData.title });
+            return false;
         }
+    } catch (error) {
+        appLogger.error("Error placing buy order for {title}: {error}", {
+            title: tradeData.title,
+            error: error instanceof Error ? error.message : String(error)
+        });
+        return false;
     }
 }
 
-// const lastBuy = async () => {
-//     for (let index = 0; index < eventsTokens.length; index++) {
-//         const token = eventsTokens[index];
+/**
+ * Executes buy logic when conditions are met
+ */
+async function executeBuyLogic(tradeData: TradeData): Promise<void> {
+    try {
+        // Check order book for sufficient liquidity
+        const book = await getBook(tradeData.asset);
+        if (!book.asks.length || !book.bids.length) {
+            appLogger.warn("No liquidity available for {title}", { title: tradeData.title });
+            return;
+        }
+        // Check if bid price meets minimum requirement
+        const highestBidPrice = parseFloat(book.bids[book.bids.length - 1].price);
+        if (highestBidPrice < TRADING_RULES.MIN_BID_PRICE) {
+            appLogger.info("Bid price {bidPrice} too low (< {minBid}) for {title}", {
+                bidPrice: highestBidPrice,
+                minBid: TRADING_RULES.MIN_BID_PRICE,
+                title: tradeData.title
+            });
+            return;
+        }
+        // Mark as processing to prevent duplicate orders
+        storage.add(tradeData.asset, { 
+            orderID: "", 
+            asset: tradeData.asset, 
+            outcome: tradeData.outcome, 
+            status: "processing" 
+        });
+        await placeBuyOrder(tradeData);
+    } catch (error) {
+        appLogger.error("Error in buy logic for {title}: {error}", {
+            title: tradeData.title,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
 
-//         // Check if we already processed this token
-//         if (temp.includes(token)) {
-//             appLogger.info("Token {token} already processed, skipping", { token });
-//             continue;
-//         }
+/**
+ * Executes sell logic when stop-loss conditions are met
+ */
+async function executeSellLogic(tradeData: TradeData, currentMinutes: number): Promise<void> {
+    // Check stop-loss conditions: price < 0.51 and after minute 55
+    if (tradeData.price >= TRADING_RULES.SELL_PRICE_THRESHOLD || currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES) {
+        return;
+    }
+    const sellKey = `sell_${tradeData.asset}`;
+    try {
+        // Mark sell as processing to prevent race conditions
+        storage.add(sellKey, { 
+            orderID: "", 
+            asset: tradeData.asset, 
+            outcome: tradeData.outcome, 
+            status: "processing" 
+        });
+        const sellResult = await sellOrder(tradeData.asset, tradeData.size, tradeData.title, tradeData.outcome);
+        if (sellResult.success) {
+            // Record sell order in database
+            database.setSell({
+                asset: tradeData.asset,
+                conditionId: tradeData.conditionId,
+                price: tradeData.price,
+                size: tradeData.size,
+                side: "SELL",
+                timestamp: tradeData.timestamp
+            });
+            // Update storage with sell status
+            storage.add(sellKey, { 
+                orderID: sellResult.orderID, 
+                asset: tradeData.asset, 
+                outcome: tradeData.outcome, 
+                status: "SOLD" 
+            });
+            appLogger.info("STOP LOSS: Sell order placed for {title} at price {price} (minute: {minutes})", {
+                title: tradeData.title,
+                price: tradeData.price,
+                minutes: currentMinutes
+            });
+        } else {
+            // Remove processing status to allow retry
+            storage.delete(sellKey);
+            appLogger.warn("Sell order failed for {title}", { title: tradeData.title });
+        }
+    } catch (error) {
+        // Remove processing status to allow retry
+        storage.delete(sellKey);
+        appLogger.error("Error in sell logic for {title}: {error}", {
+            title: tradeData.title,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
+}
 
-//         const book = await getBook(token);
-//         if (!book.asks.length || !book.bids.length) {
-//             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${token}`);
-//             continue; // Continue to next token instead of returning
-//         }
-//         const askPrice = parseFloat(book.asks.reverse()[0].price);
-//         const order: Order = await polymarket.createAndPostOrder(
-//             {
-//                 tokenID: token,
-//                 price: askPrice,
-//                 side: Side.BUY,
-//                 size: 5,
-//                 feeRateBps: 0,
-//             },
-//             { tickSize: "0.01", negRisk: false },
-//             OrderType.GTC
-//         );
-//         if (order.success) {
-//             appLogger.info("Order successfully placed for {token}", { token });
-//             // Add to temp array to prevent duplicate orders
-//             temp.push(token);
-//         } else {
-//             appLogger.warn("Order placement failed for {token}", { token });
-//         }
-//     }
-//     eventsTokens.length = 0;
-// }
-
-const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
+/**
+ * Main message handler for trade events
+ */
+async function handleTradeMessage(message: Message): Promise<void> {
+    const currentMinutes = new Date().getMinutes();
+    
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-        const id = message.payload.asset;
-        const marketId = message.payload.conditionId;    
-        const title = message.payload.title;
-        const outcome = message.payload.outcome;
-        const tokenId = message.payload.asset;
-        const price = message.payload.price;
-        const timestamp = message.payload.timestamp;
-        const side = message.payload.side;
-        const minutes = new Date().getMinutes();
 
-       
+        const tradeData: TradeData = {
+            conditionId: message.payload.conditionId,
+            asset: message.payload.asset,
+            title: message.payload.title,
+            outcome: message.payload.outcome,
+            price: message.payload.price,
+            timestamp: message.payload.timestamp,
+            side: message.payload.side,
+            size: instruction.size
+        };
+
+        // Record all trades in database
         database.setTrade({
-            id,
-            outcome,
-            market: tokenId,
-            price,
-            size: instruction.size,
-            side,
-            timestamp
+            asset: tradeData.asset,
+            conditionId: tradeData.conditionId,
+            outcome: tradeData.outcome,
+            price: tradeData.price,
+            size: message.payload.size,
+            side: tradeData.side,
+            timestamp: tradeData.timestamp
         });
 
-        if (storage.hasId(handleId("buy", id))) {
-            await updateOrder(handleId("buy", id), tokenId, outcome, timestamp, marketId);
-
+        // 1. Check if we have an existing order and update its status
+        if (storage.hasId(tradeData.asset)) {
+            const storedOrder = storage.get(tradeData.asset);
+            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData.timestamp);
         }
-        // Only check sell conditions if we have a matched buy order
-        if (storage.hasId(handleId("buy", id)) && storage.get(handleId("buy", id)).status === "MATCHED") {
-            await handleSell(id, tokenId, outcome, title, minutes, instruction.size, price, marketId, timestamp);
 
+        // 2. Check sell conditions (stop-loss) for matched buy orders
+        const sellKey = `sell_${tradeData.asset}`;
+        if (storage.hasId(tradeData.asset) && 
+            storage.get(tradeData.asset).status === "MATCHED" && 
+            !storage.hasId(sellKey)) {
+            
+            await executeSellLogic(tradeData, currentMinutes);
         }
-        if (price > 0.90 && !storage.hasId(handleId("buy", id)) && minutes > 30) {
-            // Mark as processing immediately to prevent duplicate orders
-            storage.add(handleId("buy", id), { orderID: "", asset: tokenId, outcome: outcome, status: "processing" });
-            await handleBuy(handleId("buy", id), tokenId, price, instruction.size, minutes, title, outcome)
 
-        }
-        if (price > 95 && minutes == 59) {
-            eventsTokens.push(tokenId)
+        // 3. Check buy conditions for new opportunities
+        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD && 
+            !storage.hasId(tradeData.asset)) {
+            await executeBuyLogic(tradeData);
         }
     }
-
 }
+
+/**
+ * WebSocket event handlers
+ */
+const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
+    await handleTradeMessage(message);
+};
 
 const onStatusChange = (status: string) => {
     appLogger.info("WebSocket status changed: {status}", { status });
 };
 
 const onConnect = (client: RealTimeDataClient): void => {
-    // Subscribe to a topic
     client.subscribe({
         subscriptions: [
             {
@@ -228,25 +296,22 @@ const onConnect = (client: RealTimeDataClient): void => {
             },
         ],
     });
+    appLogger.info("Connected to Polymarket WebSocket and subscribed to trades");
 };
 
-// const lasted = async () => {
-//     const currentTime = new Date();
-//     const minutes = currentTime.getMinutes();
-//     if (minutes === 59) {
-//         await lastBuy();
-//     }
-// }
-
-
-// Start the WebSocket client
-const main = async () => {
+/**
+ * Application entry point
+ */
+async function main(): Promise<void> {
     await configureLogging();
-    appLogger.info("Starting Polymarket Realtime Monitor...");
-    // setInterval(async () => {
-    //     await lasted();
-    // }, 250);
+    appLogger.info("Starting Polymarket Realtime Trading Bot...");
+    appLogger.info("Trading Rules: Buy > {buyThreshold}, Sell < {sellThreshold} after minute {stopLossMinute}", {
+        buyThreshold: TRADING_RULES.BUY_PRICE_THRESHOLD,
+        sellThreshold: TRADING_RULES.SELL_PRICE_THRESHOLD,
+        stopLossMinute: TRADING_RULES.STOP_LOSS_MINUTES
+    });
+    
     new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
-};
+}
 
 main().catch(console.error);

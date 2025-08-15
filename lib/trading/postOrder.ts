@@ -19,7 +19,7 @@ const postOrder = async (asset: string, price: number, size: number,title:string
     );
 
 
-    polymarketAPILogger.info("Buy order placed for {title} at price {outcome}-{price}", {
+    polymarketAPILogger.info("Buy order placed for {title} at price {outcome}:{price}", {
       title,
       outcome,
       price

@@ -96,7 +96,7 @@ const handleSell = async (id: string, tokenId: string, outcome: string, title: s
             appLogger.info("Price below 0.51 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title}", { minutes, id, title });
         }
     } else {
-        appLogger.debug("Price ({price}) not below 0.51 for condition {id} title: {title}", { price, id, title });
+        appLogger.info("Price (price) not below 0.51 for condition {id} title: {title}", { price, id, title });
     }
 }
 
@@ -143,7 +143,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-        const id = message.payload.conditionId;
+        const id = message.payload.asset;;
         const title = message.payload.title;
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;

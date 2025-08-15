@@ -112,6 +112,11 @@ export class DatabaseManager {
   }
 
   // BUY OPERATIONS
+  getAllBuyAssets(): string[] {
+    const rows = this.db.query("SELECT asset FROM buy_orders").all() as { asset: string }[];
+    return rows.map(r => r.asset);
+  }
+
   getBuy(asset: string): Buy | null {
     const row = this.db.query("SELECT * FROM buy_orders WHERE asset = ?").get(asset) as { 
       asset: string; 

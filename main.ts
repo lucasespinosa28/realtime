@@ -8,11 +8,25 @@ import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 
 const database = new DatabaseManager("trades.sqlite");
+// In-memory set of assets we've already bought (authoritative copy in DB)
+const boughtAssets = new Set<string>();
 
 // Synchronous lock to prevent race conditions across multiple async message handlers
 // CRITICAL: This prevents multiple WebSocket messages from passing the buy condition
 // check simultaneously and placing duplicate orders for the same asset
 const processingAssets = new Set<string>();
+
+// Single, simple guard: claim a slot to buy a specific asset
+function claimBuySlot(asset: string): boolean {
+    if (boughtAssets.has(asset)) return false; // already bought before
+    if (processingAssets.has(asset)) return false; // another handler is buying now
+    processingAssets.add(asset);
+    return true;
+}
+
+function releaseBuySlot(asset: string) {
+    processingAssets.delete(asset);
+}
 
 // Constants for trading rules
 const TRADING_RULES = {
@@ -38,6 +52,7 @@ interface TradeData {
  * Checks if a placed buy order has been matched
  */
 async function checkOrderStatus(conditionId: string, asset: string, outcome: string, timestamp: number): Promise<void> {
+    if (!storage.hasId(asset)) return; // nothing to check
     const storedOrder = storage.get(asset);
     // Skip if already matched or outcome doesn't match
     if (storedOrder.status === "MATCHED" || storedOrder.outcome !== outcome) {
@@ -85,6 +100,11 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
  */
 async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
     try {
+    // Double-check idempotency: if memory already contains a buy for this asset, skip
+    if (boughtAssets.has(tradeData.asset)) {
+            appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
+            return true;
+        }
         const order = await postOrder(
             tradeData.asset, 
             priceHandler(tradeData.price), 
@@ -102,6 +122,8 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 side: "BUY",
                 timestamp: tradeData.timestamp
             });
+            // Track in memory to avoid future DB checks
+            boughtAssets.add(tradeData.asset);
             // Update storage with order details
             storage.add(tradeData.asset, { 
                 orderID: order.orderID, 
@@ -176,29 +198,7 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
     }
 }
 
-/**
- * Checks if we can buy opposite asset (hedge strategy)
- */
-function canBuyOppositeAsset(tradeData: TradeData, currentMinutes: number): boolean {
-    // Only allow buying opposite asset if stop-loss conditions are met
-    if (tradeData.price >= TRADING_RULES.SELL_PRICE_THRESHOLD || currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES) {
-        return false;
-    }
-    
-    // Check if we have any existing position with same conditionId but different asset
-    const allStoredIds = storage.getAllIds();
-    const hasExistingPosition = allStoredIds.some(id => {
-        // Skip sell keys
-        if (id.startsWith('sell_')) return false;
-        
-        const order = storage.get(id);
-        return order.asset !== tradeData.asset && // Different asset
-               order.conditionId === tradeData.conditionId && // Same condition
-               (order.status === "MATCHED" || order.status === "processing");
-    });
-    
-    return hasExistingPosition;
-}
+// Hedge strategy removed for simplicity and to avoid duplicate/complex buy paths
 
 /**
  * Executes sell logic when stop-loss conditions are met
@@ -290,8 +290,8 @@ async function handleTradeMessage(message: Message): Promise<void> {
             timestamp: tradeData.timestamp
         });
 
-        // 1. Check if we have an existing order and update its status
-        if (storage.hasId(tradeData.asset)) {
+    // 1. Check if we have an existing order and update its status
+    if (storage.hasId(tradeData.asset)) {
             const storedOrder = storage.get(tradeData.asset);
             await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData.timestamp);
         }
@@ -305,88 +305,24 @@ async function handleTradeMessage(message: Message): Promise<void> {
             await executeSellLogic(tradeData, currentMinutes);
         }
 
-        // 3. Check buy conditions for new opportunities
-        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD && 
-            !storage.hasId(tradeData.asset)) {
-            
-            // Use atomic check-and-set to prevent race conditions on buy orders only
-            if (!processingAssets.has(tradeData.asset)) {
-                // IMMEDIATELY add to synchronous lock to prevent race conditions
-                processingAssets.add(tradeData.asset);
-                
-                try {
-                    // Check if this is early in the hour (normal buy) or hedge buy
-                    const isEarlyHour = currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES;
-                    const canBuyOpposite = canBuyOppositeAsset(tradeData, currentMinutes);
-                    
-                    // Allow buy if:
-                    // 1. Early in hour and no existing position for this condition, OR
-                    // 2. After minute 55 and stop-loss conditions met (hedge strategy)
-                    if (isEarlyHour) {
-                        // Early hour: only buy if no existing position for this condition
-                        const allStoredIds = storage.getAllIds();
-                        const hasAnyPositionForCondition = allStoredIds.some(id => {
-                            // Skip sell keys
-                            if (id.startsWith('sell_')) return false;
-                            
-                            const order = storage.get(id);
-                            return order.conditionId === tradeData.conditionId && 
-                                   (order.status === "MATCHED" || order.status === "processing");
-                        });
-                        
-                        if (!hasAnyPositionForCondition) {
-                            // Mark as processing in storage (already locked in memory)
-                            storage.add(tradeData.asset, { 
-                                orderID: "", 
-                                asset: tradeData.asset, 
-                                outcome: tradeData.outcome, 
-                                status: "processing",
-                                conditionId: tradeData.conditionId
-                            });
-                            
-                            appLogger.info("Early hour buy opportunity for {outcome} at {price}", {
-                                outcome: tradeData.outcome,
-                                price: tradeData.price
-                            });
-                            await executeBuyLogic(tradeData);
-                        } else {
-                            appLogger.info("Skipping buy - already have position for this condition (early hour strategy)", {
-                                outcome: tradeData.outcome,
-                                price: tradeData.price
-                            });
-                        }
-                    } else if (canBuyOpposite) {
-                        // Mark as processing in storage (already locked in memory)
-                        storage.add(tradeData.asset, { 
-                            orderID: "", 
-                            asset: tradeData.asset, 
-                            outcome: tradeData.outcome, 
-                            status: "processing",
-                            conditionId: tradeData.conditionId
-                        });
-                        
-                        // Late hour: only buy opposite asset as hedge
-                        appLogger.info("Hedge buy opportunity for {outcome} at {price} (minute: {minutes})", {
-                            outcome: tradeData.outcome,
-                            price: tradeData.price,
-                            minutes: currentMinutes
-                        });
-                        await executeBuyLogic(tradeData);
-                    } else {
-                        appLogger.info("No hedge opportunity - conditions not met for {outcome} at {price}", {
-                            outcome: tradeData.outcome,
-                            price: tradeData.price
-                        });
-                    }
-                } finally {
-                    // Always remove from processing lock when done (success or failure)
-                    processingAssets.delete(tradeData.asset);
-                }
-            } else {
-                // Asset is already being processed for buy - log but don't block entire message
-                appLogger.debug("Buy already in progress for asset {asset} - skipping duplicate buy attempt", {
-                    asset: tradeData.asset
+        // 3. Check buy conditions for new opportunities (simplified — no hedge logic)
+        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
+            // Claim the buy slot; if false, another message already handled or we're done
+            if (!claimBuySlot(tradeData.asset)) {
+                continue;
+            }
+            try {
+                // Mark as processing in storage so concurrent parts of app see this
+                storage.add(tradeData.asset, { 
+                    orderID: "", 
+                    asset: tradeData.asset, 
+                    outcome: tradeData.outcome, 
+                    status: "processing",
+                    conditionId: tradeData.conditionId
                 });
+                await executeBuyLogic(tradeData);
+            } finally {
+                releaseBuySlot(tradeData.asset);
             }
         }
     }
@@ -426,6 +362,15 @@ async function main(): Promise<void> {
         sellThreshold: TRADING_RULES.SELL_PRICE_THRESHOLD,
         stopLossMinute: TRADING_RULES.STOP_LOSS_MINUTES
     });
+    // Seed in-memory bought set from DB once at startup
+    try {
+        for (const asset of database.getAllBuyAssets()) {
+            boughtAssets.add(asset);
+        }
+        appLogger.info("Loaded {count} bought assets from DB into memory", { count: boughtAssets.size });
+    } catch (e) {
+        appLogger.error("Failed loading bought assets from DB: {error}", { error: e instanceof Error ? e.message : String(e) });
+    }
     
     new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
 }

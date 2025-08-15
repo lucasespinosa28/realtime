@@ -8,7 +8,7 @@ import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 import type { Order } from "./lib/trading/model";
 
-let temp:string[] = []
+const temp: string[] = []
 const updateOrder = async (id: string, tokenId: string, outcome: string) => {
     if (storage.get(id).outcome === outcome) {
         const orderId = storage.get(id).orderID;
@@ -30,12 +30,12 @@ const updateOrder = async (id: string, tokenId: string, outcome: string) => {
 
 const buyOrder = async (id: string, tokenId: string, price: number, size: number, title: string, outcome: string) => {
     const order = await postOrder(tokenId, price, size, title, outcome);
-    // Update storage with the actual order details
+    // Update storage with the actual order details (overwriting the "processing" status)
     if (order.success) {
-        storage.add(handleId("buy", id), { orderID: order.orderID, asset: tokenId, outcome: outcome, status: order.status });
+        storage.add(id, { orderID: order.orderID, asset: tokenId, outcome: outcome, status: order.status });
         appLogger.info("Order successfully placed for condition {id} title: {title}", { id, title });
     } else {
-        storage.add(handleId("buy", id), { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
+        storage.add(id, { orderID: "", asset: tokenId, outcome: outcome, status: "failed" });
         appLogger.warn("Order placement failed for condition {id} title: {title}", { id, title });
     }
 }
@@ -67,19 +67,21 @@ const handleBuy = async (id: string, tokenId: string, price: number, size: numbe
 }
 
 const handleSell = async (id: string, tokenId: string, outcome: string, title: string, minutes: number, size: number, price: number) => {
-    if (storage.get(handleId("buy", id)).status == "MATCHED")
+    if (storage.get(handleId("buy", id)).status == "MATCHED") {
         // Check if we should attempt to sell - only if status is MATCHED and asset matches
         // Check if price dropped below 0.51 and current time has minutes > 55
         if (price < 0.51 && minutes > 55) {
             try {
-                const sellOrderResult = await sellOrder(tokenId, size, title, outcome);
-                if (sellOrderResult.success) {
-                    appLogger.info("STOP LOSS: Sell order placed for condition {id} at (minutes: {minutes}) title: {title}", { id, price, minutes, title });
-                    // Update storage to reflect sell order - this prevents any future selling for this condition
-                    storage.add(id, { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
-                } else {
-                    // Sell order failed, revert status back to MATCHED
-                    storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "MATCHED" });
+                if (!storage.hasId(handleId("sell", id))) {
+                    const sellOrderResult = await sellOrder(tokenId, size, title, outcome);
+                    if (sellOrderResult.success) {
+                        appLogger.info("STOP LOSS: Sell order placed for condition {id} at (minutes: {minutes}) title: {title}", { id, price, minutes, title });
+                        // Update storage to reflect sell order - this prevents any future selling for this condition
+                        storage.add(handleId("sell", id), { orderID: sellOrderResult.orderID, asset: tokenId, outcome: outcome, status: "SOLD" });
+                    } else {
+                        // Sell order failed, revert status back to MATCHED
+                        storage.add(handleId("sell", id), { orderID: "", asset: tokenId, outcome: outcome, status: "MATCHED" });
+                    }
                 }
             } catch (error) {
                 appLogger.error("Error placing STOP LOSS sell order for condition {id}: {error} title: {title}", {
@@ -88,12 +90,12 @@ const handleSell = async (id: string, tokenId: string, outcome: string, title: s
                     error: error instanceof Error ? error.message : String(error)
                 });
                 // Revert status back to MATCHED since sell failed
-                storage.add(id, { orderID: storage.get(id).orderID, asset: tokenId, outcome: outcome, status: "MATCHED" });
+                storage.add(handleId("sell", id), { orderID: "", asset: tokenId, outcome: outcome, status: "MATCHED" });
             }
         } else {
             appLogger.info("Price below 0.51 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title}", { minutes, id, title });
         }
-    else {
+    } else {
         appLogger.debug("Price ({price}) not below 0.51 for condition {id} title: {title}", { price, id, title });
     }
 }
@@ -101,13 +103,13 @@ const handleSell = async (id: string, tokenId: string, outcome: string, title: s
 const lastBuy = async () => {
     for (let index = 0; index < eventsTokens.length; index++) {
         const token = eventsTokens[index];
-        
+
         // Check if we already processed this token
         if (temp.includes(token)) {
             appLogger.info("Token {token} already processed, skipping", { token });
             continue;
         }
-        
+
         const book = await getBook(token);
         if (!book.asks.length || !book.bids.length) {
             appLogger.warn(`Order not placed: empty asks or bids for tokenId ${token}`);
@@ -149,19 +151,25 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         const minutes = new Date().getMinutes();
 
         if (storage.hasId(handleId("buy", id))) {
-            await updateOrder(id, tokenId, outcome);
+            await updateOrder(handleId("buy", id), tokenId, outcome);
 
         }
         if (storage.hasId(handleId("buy", id))) {
             await handleSell(id, tokenId, outcome, title, minutes, instruction.size, price);
 
         }
-        if (price > 0.90 && !storage.hasId(id) && minutes > 30) {
-            await handleBuy(id, tokenId, price, instruction.size, minutes, title, outcome)
+        if (price > 0.90 && !storage.hasId(handleId("buy", id)) && minutes > 30) {
+            // Mark as processing immediately to prevent duplicate orders
+            storage.add(handleId("buy", id), { orderID: "", asset: tokenId, outcome: outcome, status: "processing" });
+            await handleBuy(handleId("buy", id), tokenId, price, instruction.size, minutes, title, outcome)
 
         }
         if (price > 95 && minutes == 59) {
             eventsTokens.push(tokenId)
+        }
+
+        if (minutes < 10) {
+            temp.length = 0
         }
     }
 

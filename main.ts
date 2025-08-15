@@ -63,7 +63,8 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
                 orderID: orderId, 
                 asset: asset, 
                 outcome: outcome, 
-                status: "MATCHED" 
+                status: "MATCHED",
+                conditionId: conditionId
             });
         }
     } catch (error) {
@@ -101,7 +102,8 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 orderID: order.orderID, 
                 asset: tradeData.asset, 
                 outcome: tradeData.outcome, 
-                status: order.status 
+                status: order.status,
+                conditionId: tradeData.conditionId
             });
             appLogger.info("Buy order placed for {title} at price {price}", {
                 title: tradeData.title,
@@ -114,7 +116,8 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 orderID: "", 
                 asset: tradeData.asset, 
                 outcome: tradeData.outcome, 
-                status: "failed" 
+                status: "failed",
+                conditionId: tradeData.conditionId
             });
             appLogger.warn("Buy order failed for {title}", { title: tradeData.title });
             return false;
@@ -154,7 +157,8 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
             orderID: "", 
             asset: tradeData.asset, 
             outcome: tradeData.outcome, 
-            status: "processing" 
+            status: "processing",
+            conditionId: tradeData.conditionId
         });
         await placeBuyOrder(tradeData);
     } catch (error) {
@@ -163,6 +167,30 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
             error: error instanceof Error ? error.message : String(error)
         });
     }
+}
+
+/**
+ * Checks if we can buy opposite asset (hedge strategy)
+ */
+function canBuyOppositeAsset(tradeData: TradeData, currentMinutes: number): boolean {
+    // Only allow buying opposite asset if stop-loss conditions are met
+    if (tradeData.price >= TRADING_RULES.SELL_PRICE_THRESHOLD || currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES) {
+        return false;
+    }
+    
+    // Check if we have any existing position with same conditionId but different asset
+    const allStoredIds = storage.getAllIds();
+    const hasExistingPosition = allStoredIds.some(id => {
+        // Skip sell keys
+        if (id.startsWith('sell_')) return false;
+        
+        const order = storage.get(id);
+        return order.asset !== tradeData.asset && // Different asset
+               order.conditionId === tradeData.conditionId && // Same condition
+               (order.status === "MATCHED" || order.status === "processing");
+    });
+    
+    return hasExistingPosition;
 }
 
 /**
@@ -180,7 +208,8 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
             orderID: "", 
             asset: tradeData.asset, 
             outcome: tradeData.outcome, 
-            status: "processing" 
+            status: "processing",
+            conditionId: tradeData.conditionId
         });
         const sellResult = await sellOrder(tradeData.asset, tradeData.size, tradeData.title, tradeData.outcome);
         if (sellResult.success) {
@@ -198,7 +227,8 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
                 orderID: sellResult.orderID, 
                 asset: tradeData.asset, 
                 outcome: tradeData.outcome, 
-                status: "SOLD" 
+                status: "SOLD",
+                conditionId: tradeData.conditionId
             });
             appLogger.info("STOP LOSS: Sell order placed for {title} at price {price} (minute: {minutes})", {
                 title: tradeData.title,
@@ -271,7 +301,52 @@ async function handleTradeMessage(message: Message): Promise<void> {
         // 3. Check buy conditions for new opportunities
         if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD && 
             !storage.hasId(tradeData.asset)) {
-            await executeBuyLogic(tradeData);
+            
+            // Check if this is early in the hour (normal buy) or hedge buy
+            const isEarlyHour = currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES;
+            const canBuyOpposite = canBuyOppositeAsset(tradeData, currentMinutes);
+            
+            // Allow buy if:
+            // 1. Early in hour and no existing position for this condition, OR
+            // 2. After minute 55 and stop-loss conditions met (hedge strategy)
+            if (isEarlyHour) {
+                // Early hour: only buy if no existing position for this condition
+                const allStoredIds = storage.getAllIds();
+                const hasAnyPositionForCondition = allStoredIds.some(id => {
+                    // Skip sell keys
+                    if (id.startsWith('sell_')) return false;
+                    
+                    const order = storage.get(id);
+                    return order.conditionId === tradeData.conditionId && 
+                           (order.status === "MATCHED" || order.status === "processing");
+                });
+                
+                if (!hasAnyPositionForCondition) {
+                    appLogger.info("Early hour buy opportunity for {outcome} at {price}", {
+                        outcome: tradeData.outcome,
+                        price: tradeData.price
+                    });
+                    await executeBuyLogic(tradeData);
+                } else {
+                    appLogger.info("Skipping buy - already have position for this condition (early hour strategy)", {
+                        outcome: tradeData.outcome,
+                        price: tradeData.price
+                    });
+                }
+            } else if (canBuyOpposite) {
+                // Late hour: only buy opposite asset as hedge
+                appLogger.info("Hedge buy opportunity for {outcome} at {price} (minute: {minutes})", {
+                    outcome: tradeData.outcome,
+                    price: tradeData.price,
+                    minutes: currentMinutes
+                });
+                await executeBuyLogic(tradeData);
+            } else {
+                appLogger.info("No hedge opportunity - conditions not met for {outcome} at {price}", {
+                    outcome: tradeData.outcome,
+                    price: tradeData.price
+                });
+            }
         }
     }
 }

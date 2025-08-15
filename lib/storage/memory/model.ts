@@ -1,6 +1,7 @@
 export interface Order {
     asset: string;
-    orderID:string;
+    orderID: string;
     outcome: string;
-    status:string;
+    status: string;
+    conditionId: string;
 }

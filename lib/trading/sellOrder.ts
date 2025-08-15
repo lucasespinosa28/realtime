@@ -18,17 +18,19 @@ const sellOrder = async (asset: string, size: number, title: string, outcome: st
     );
 
 
-    polymarketAPILogger.info("Sell order placed for {title} outcome: {outcome}", {
+    polymarketAPILogger.info("Sell order placed for {title} outcome: {outcome} asset {asset}", {
       title,
       outcome,
+      asset
     });
 
     return order;
   } catch (error) {
-    polymarketAPILogger.error("Error placing order for {title}:{tokenID}: {error}", {
+    polymarketAPILogger.error("Error placing order for {title}:{tokenID}: {error} asset:{asset}", {
       title,
       outcome,
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
+      asset
     });
     throw error;
   }

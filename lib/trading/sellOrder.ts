@@ -18,7 +18,7 @@ const sellOrder = async (asset: string, size: number, title: string, outcome: st
     );
 
 
-    polymarketAPILogger.info("Sell order placed for {title} at price {outcome}:{price}", {
+    polymarketAPILogger.info("Sell order placed for {title} outcome: {outcome}", {
       title,
       outcome,
     });

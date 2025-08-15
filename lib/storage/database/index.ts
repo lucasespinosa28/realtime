@@ -1,5 +1,5 @@
 import { Database } from "bun:sqlite";
-import type { DatabaseRecord, Order, Trade } from "./model";
+import type { Trade, Buy, Sell } from "./model";
 import { dbLogger } from "../../../utils/logger";
 
 export class DatabaseManager {
@@ -14,157 +14,210 @@ export class DatabaseManager {
     // Enable Write-Ahead Logging for better concurrency
     this.db.run("PRAGMA journal_mode=WAL;");
 
-    // Create table based on DatabaseRecord model from mode.ts
+    // Create trades table
     this.db.run(
-      `CREATE TABLE IF NOT EXISTS markets (
-          id TEXT PRIMARY KEY,
-          title TEXT NOT NULL,
-          "order" TEXT,
-          Up TEXT,
-          Down TEXT
+      `CREATE TABLE IF NOT EXISTS trades (
+          row_id INTEGER PRIMARY KEY AUTOINCREMENT,
+          id TEXT NOT NULL,
+          outcome TEXT NOT NULL,
+          market TEXT NOT NULL,
+          price REAL NOT NULL,
+          size REAL NOT NULL,
+          side TEXT NOT NULL,
+          timestamp TEXT NOT NULL
         )`
     );
-    dbLogger.info("Database started");
+
+    // Create buy orders table
+    this.db.run(
+      `CREATE TABLE IF NOT EXISTS buy_orders (
+          id TEXT PRIMARY KEY,
+          market TEXT NOT NULL,
+          price REAL NOT NULL,
+          size REAL NOT NULL,
+          side TEXT NOT NULL,
+          timestamp TEXT NOT NULL
+        )`
+    );
+
+    // Create sell orders table
+    this.db.run(
+      `CREATE TABLE IF NOT EXISTS sell_orders (
+          id TEXT PRIMARY KEY,
+          market TEXT NOT NULL,
+          price REAL NOT NULL,
+          size REAL NOT NULL,
+          side TEXT NOT NULL,
+          timestamp TEXT NOT NULL
+        )`
+    );
+
+    dbLogger.info("Database initialized with trades (auto-increment), buy_orders, and sell_orders tables");
   }
 
-  // CREATE - Insert new market record
-  createMarket(market: DatabaseRecord): void {
-    try {
-      this.db.run("BEGIN");
-      const existing = this.getMarket(market.id);
-      if (!existing) {
-        this.db.run(
-          "INSERT INTO markets (id, title, \"order\", Up, Down) VALUES (?, ?, ?, ?, ?)",
-          [
-            market.id, 
-            market.title, 
-            market.order ? JSON.stringify(market.order) : null,
-            market.Up ? JSON.stringify(market.Up) : null,
-            market.Down ? JSON.stringify(market.Down) : null
-          ]
-        );
-        dbLogger.info(`Market ${market.id} created`);
-      }
-      this.db.run("COMMIT");
-    } catch (e) {
-      this.db.run("ROLLBACK");
-      if (String(e).includes("UNIQUE constraint failed")) {
-        dbLogger.debug(`Market ${market.id} already exists, skipping creation.`);
-      } else {
-        throw e;
-      }
-    }
-  }
-
-  // READ - Get market by id
-  getMarket(id: string): DatabaseRecord | null {
-    const row = this.db.query("SELECT * FROM markets WHERE id = ?").get(id) as { 
+  // TRADE OPERATIONS
+  getTrade(id: string): Trade | null {
+    const row = this.db.query("SELECT * FROM trades WHERE id = ? ORDER BY row_id DESC LIMIT 1").get(id) as { 
+      row_id: number;
       id: string; 
-      title: string; 
-      order: string | null; 
-      Up: string | null; 
-      Down: string | null; 
+      outcome: string;
+      market: string;
+      price: number;
+      size: number;
+      side: string;
+      timestamp: number;
     } | null;
 
-    if (!row) {
-      return null;
-    }
+    if (!row) return null;
 
     return {
       id: row.id,
-      title: row.title,
-      order: row.order ? JSON.parse(row.order) : undefined,
-      Up: row.Up ? JSON.parse(row.Up) : undefined,
-      Down: row.Down ? JSON.parse(row.Down) : undefined,
+      outcome: row.outcome,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
     };
   }
 
-  // READ - Get all markets
-  getAllMarkets(): DatabaseRecord[] {
-    const rows = this.db.query("SELECT * FROM markets").all() as { 
+  getAllTrades(id: string): Trade[] {
+    const rows = this.db.query("SELECT * FROM trades WHERE id = ? ORDER BY row_id ASC").all(id) as { 
+      row_id: number;
       id: string; 
-      title: string; 
-      order: string | null; 
-      Up: string | null; 
-      Down: string | null; 
+      outcome: string;
+      market: string;
+      price: number;
+      size: number;
+      side: string;
+      timestamp: number;
     }[];
 
     return rows.map(row => ({
       id: row.id,
-      title: row.title,
-      order: row.order ? JSON.parse(row.order) : undefined,
-      Up: row.Up ? JSON.parse(row.Up) : undefined,
-      Down: row.Down ? JSON.parse(row.Down) : undefined,
+      outcome: row.outcome,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
     }));
   }
 
-  // PUSH - Add order to market's order array
-  pushOrder(marketId: string, order: Order): void {
-    const market = this.getMarket(marketId);
-    if (!market) {
-      throw new Error(`Market with id ${marketId} not found`);
-    }
-
-    const orders = market.order || [];
-    orders.push(order);
-
+  setTrade(trade: Trade): void {
     this.db.run(
-      'UPDATE markets SET "order" = ? WHERE id = ?',
-      [JSON.stringify(orders), marketId]
+      "INSERT INTO trades (id, outcome, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
+      [trade.id, trade.outcome, trade.market, trade.price, trade.size, trade.side, trade.timestamp]
     );
-    // dbLogger.info(`Order added to market ${marketId}`);
+    dbLogger.info(`Trade ${trade.id} inserted`);
   }
 
-  // PUSH - Add trade to market's Up/Down side trades array
-  pushTrade(marketId: string, side: "Up" | "Down", trade: Trade): void {
-    const market = this.getMarket(marketId);
-    if (!market) {
-      throw new Error(`Market with id ${marketId} not found`);
-    }
+  // BUY OPERATIONS
+  getBuy(id: string): Buy | null {
+    const row = this.db.query("SELECT * FROM buy_orders WHERE id = ?").get(id) as { 
+      id: string; 
+      market: string;
+      price: number;
+      size: number;
+      side: "BUY";
+      timestamp: number;
+    } | null;
 
-    // Initialize side if it doesn't exist
-    if (!market[side]) {
-      market[side] = {
-        assetId: "",
-        trades: []
-      };
-    }
+    if (!row) return null;
 
-    market[side]!.trades.push(trade);
-
-    this.db.run(
-      `UPDATE markets SET ${side} = ? WHERE id = ?`,
-      [JSON.stringify(market[side]), marketId]
-    );
-    // dbLogger.info(`Trade added to market ${marketId} ${side} side`);
+    return {
+      id: row.id,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    };
   }
 
-  // PUSH - Set assetId for a market side (only if not already set)
-  setAssetId(marketId: string, side: "Up" | "Down", assetId: string): void {
-    const market = this.getMarket(marketId);
-    if (!market) {
-      throw new Error(`Market with id ${marketId} not found`);
-    }
-
-    // Initialize side if it doesn't exist
-    if (!market[side]) {
-      market[side] = {
-        assetId: assetId,
-        trades: []
-      };
-    } else if (market[side]!.assetId === "" || !market[side]!.assetId) {
-      // Only update if assetId is empty
-      market[side]!.assetId = assetId;
-    } else {
-      // AssetId already set, don't update
-      return;
-    }
-
+  setBuy(buy: Buy): void {
     this.db.run(
-      `UPDATE markets SET ${side} = ? WHERE id = ?`,
-      [JSON.stringify(market[side]), marketId]
+      "INSERT OR REPLACE INTO buy_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+      [buy.id, buy.market, buy.price, buy.size, buy.side, buy.timestamp]
     );
-    // dbLogger.info(`AssetId set for market ${marketId} ${side} side`);
+    dbLogger.info(`Buy order ${buy.id} set`);
+  }
+
+  getAllBuys(id: string): Buy[] {
+    const rows = this.db.query("SELECT * FROM buy_orders WHERE id = ?").all(id) as { 
+      id: string; 
+      market: string;
+      price: number;
+      size: number;
+      side: "BUY";
+      timestamp: number;
+    }[];
+
+    return rows.map(row => ({
+      id: row.id,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    }));
+  }
+
+  // SELL OPERATIONS
+  getSell(id: string): Sell | null {
+    const row = this.db.query("SELECT * FROM sell_orders WHERE id = ?").get(id) as { 
+      id: string; 
+      market: string;
+      price: number;
+      size: number;
+      side: "SELL";
+      timestamp: number;
+    } | null;
+
+    if (!row) return null;
+
+    return {
+      id: row.id,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    };
+  }
+
+  setSell(sell: Sell): void {
+    this.db.run(
+      "INSERT OR REPLACE INTO sell_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+      [sell.id, sell.market, sell.price, sell.size, sell.side, sell.timestamp]
+    );
+    dbLogger.info(`Sell order ${sell.id} set`);
+  }
+
+  getAllSells(id: string): Sell[] {
+    const rows = this.db.query("SELECT * FROM sell_orders WHERE id = ?").all(id) as { 
+      id: string; 
+      market: string;
+      price: number;
+      size: number;
+      side: "SELL";
+      timestamp: number;
+    }[];
+
+    return rows.map(row => ({
+      id: row.id,
+      market: row.market,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    }));
+  }
+
+  // UTILITY
+  close(): void {
+    this.db.close();
+    dbLogger.info("Database connection closed");
   }
 }
 

@@ -67,6 +67,9 @@ const handleBuy = async (id: string, tokenId: string, price: number, size: numbe
 }
 
 const handleSell = async (id: string, tokenId: string, outcome: string, title: string, minutes: number, size: number, price: number) => {
+    // Debug: Log the price value being checked
+    appLogger.debug("Checking sell conditions for asset {id}: price={price}, outcome={outcome}, title={title}", { id, price, outcome, title });
+    
     if (storage.get(handleId("buy", id)).status == "MATCHED") {
         // Check if we should attempt to sell - only if status is MATCHED and asset matches
         // Check if price dropped below 0.51 and current time has minutes > 55
@@ -93,10 +96,10 @@ const handleSell = async (id: string, tokenId: string, outcome: string, title: s
                 storage.add(handleId("sell", id), { orderID: "", asset: tokenId, outcome: outcome, status: "MATCHED" });
             }
         } else {
-            appLogger.info("Price below 0.51 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title}", { minutes, id, title });
+            appLogger.info("Price below 0.51 but minutes ({minutes}) not > 55, skipping sell for condition {id} title: {title} - Current price: {price}", { minutes, id, title, price });
         }
     } else {
-        appLogger.info("Price (price) not below 0.51 for condition {id} title: {title}", { price, id, title });
+        appLogger.debug("Price ({price}) not below 0.51 for condition {id} title: {title}", { price, id, title });
     }
 }
 
@@ -143,7 +146,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-        const id = message.payload.asset;;
+        const id = message.payload.asset;
         const title = message.payload.title;
         const outcome = message.payload.outcome;
         const tokenId = message.payload.asset;

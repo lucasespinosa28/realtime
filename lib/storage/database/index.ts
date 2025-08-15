@@ -109,7 +109,6 @@ export class DatabaseManager {
       "INSERT INTO trades (id, outcome, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
       [trade.id, trade.outcome, trade.market, trade.price, trade.size, trade.side, trade.timestamp]
     );
-    dbLogger.info(`Trade ${trade.id} inserted`);
   }
 
   // BUY OPERATIONS
@@ -140,7 +139,6 @@ export class DatabaseManager {
       "INSERT OR REPLACE INTO buy_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
       [buy.id, buy.market, buy.price, buy.size, buy.side, buy.timestamp]
     );
-    dbLogger.info(`Buy order ${buy.id} set`);
   }
 
   getAllBuys(id: string): Buy[] {
@@ -191,7 +189,6 @@ export class DatabaseManager {
       "INSERT OR REPLACE INTO sell_orders (id, market, price, size, side, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
       [sell.id, sell.market, sell.price, sell.size, sell.side, sell.timestamp]
     );
-    dbLogger.info(`Sell order ${sell.id} set`);
   }
 
   getAllSells(id: string): Sell[] {

@@ -8,7 +8,7 @@ import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 import type { Order } from "./lib/trading/model";
 
-
+let temp:string[] = []
 const updateOrder = async (id: string, tokenId: string, outcome: string) => {
     if (storage.get(id).outcome === outcome) {
         const orderId = storage.get(id).orderID;
@@ -152,6 +152,14 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
 
         }
         if (price > 95 && minutes == 59) {
+            for (const tempId of temp) {
+                for (const event of eventsTokens) {
+                    if (tempId === event) {
+                        return;
+                    }
+                }
+            }
+            temp.push(tokenId)
             eventsTokens.push(tokenId)
         }
     }

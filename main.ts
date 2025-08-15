@@ -7,7 +7,7 @@ import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 
-const database = new DatabaseManager();
+const database = new DatabaseManager("trades.sqlite");
 
 // Constants for trading rules
 const TRADING_RULES = {

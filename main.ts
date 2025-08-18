@@ -52,7 +52,7 @@ interface TradeData {
 /**
  * Checks if a placed buy order has been matched
  */
-async function checkOrderStatus(conditionId: string, asset: string, outcome: string, timestamp: number): Promise<void> {
+async function checkOrderStatus(conditionId: string, asset: string, outcome: string): Promise<void> {
     if (!storage.hasId(asset)) return; // nothing to check
     const storedOrder = storage.get(asset);
     // Skip if already matched or outcome doesn't match
@@ -69,15 +69,6 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
             appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
                 conditionId,
                 outcome
-            });
-            // Record matched buy order in database
-            database.setBuy({
-                asset: asset,
-                conditionId: conditionId,
-                price: Number(order.price),
-                size: Number(order.size_matched),
-                side: "BUY",
-                timestamp: timestamp
             });
             // Update storage with matched status
             storage.add(asset, {
@@ -114,15 +105,6 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             tradeData.outcome
         );
         if (order.success) {
-            // Record posted order in database
-            database.setBuy({
-                asset: tradeData.asset,
-                conditionId: tradeData.conditionId,
-                price: priceHandler(tradeData.price),
-                size: tradeData.size,
-                side: "BUY",
-                timestamp: tradeData.timestamp
-            });
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);
             // Update storage with order details
@@ -221,15 +203,6 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
         });
         const sellResult = await sellOrder(tradeData.asset, tradeData.size, tradeData.title, tradeData.outcome);
         if (sellResult.success) {
-            // Record sell order in database
-            database.setSell({
-                asset: tradeData.asset,
-                conditionId: tradeData.conditionId,
-                price: tradeData.price,
-                size: tradeData.size,
-                side: "SELL",
-                timestamp: tradeData.timestamp
-            });
             // Update storage with sell status
             storage.add(sellKey, {
                 orderID: sellResult.orderID,
@@ -288,14 +261,25 @@ async function handleTradeMessage(message: Message): Promise<void> {
             price: tradeData.price,
             size: message.payload.size,
             side: tradeData.side,
-            timestamp: tradeData.timestamp
+            timestamp: tradeData.timestamp,
+            bio: message.payload.bio,
+            eventSlug: message.payload.eventSlug,
+            icon: message.payload.icon,
+            name: message.payload.name,
+            outcomeIndex: message.payload.outcomeIndex,
+            profileImage: message.payload.profileImage,
+            proxyWallet: message.payload.proxyWallet,
+            pseudonym: message.payload.pseudonym,
+            slug: message.payload.slug,
+            title: message.payload.title,
+            transactionHash: message.payload.transactionHash
         });
         // 0. check time
         if (TRADING_RULES.START_TIME < currentMinutes) {
             // 1. Check if we have an existing order and update its status
             if (storage.hasId(tradeData.asset)) {
                 const storedOrder = storage.get(tradeData.asset);
-                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData.timestamp);
+                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome);
             }
 
             // 2. Check sell conditions (stop-loss) for matched buy orders
@@ -365,16 +349,6 @@ async function main(): Promise<void> {
         sellThreshold: TRADING_RULES.SELL_PRICE_THRESHOLD,
         stopLossMinute: TRADING_RULES.STOP_LOSS_MINUTES
     });
-    // Seed in-memory bought set from DB once at startup
-    try {
-        for (const asset of database.getAllBuyAssets()) {
-            boughtAssets.add(asset);
-        }
-        appLogger.info("Loaded {count} bought assets from DB into memory", { count: boughtAssets.size });
-    } catch (e) {
-        appLogger.error("Failed loading bought assets from DB: {error}", { error: e instanceof Error ? e.message : String(e) });
-    }
-
     new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
 }
 

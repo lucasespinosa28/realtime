@@ -6,6 +6,17 @@ export interface Trade {
     size: number;
     side: string;
     timestamp: number;
+    bio: string;
+    eventSlug: string;
+    icon: string;
+    name: string;
+    outcomeIndex: number;
+    profileImage: string;
+    proxyWallet: string;
+    pseudonym: string;
+    slug: string;
+    title: string;
+    transactionHash: string;
 }
 
 export interface Buy {

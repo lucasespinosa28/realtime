@@ -30,6 +30,7 @@ function releaseBuySlot(asset: string) {
 
 // Constants for trading rules
 const TRADING_RULES = {
+    START_TIME: 49,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.88,
     SELL_PRICE_THRESHOLD: 0.51,
@@ -79,10 +80,10 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
                 timestamp: timestamp
             });
             // Update storage with matched status
-            storage.add(asset, { 
-                orderID: orderId, 
-                asset: asset, 
-                outcome: outcome, 
+            storage.add(asset, {
+                orderID: orderId,
+                asset: asset,
+                outcome: outcome,
                 status: "MATCHED",
                 conditionId: conditionId
             });
@@ -100,16 +101,16 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
  */
 async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
     try {
-    // Double-check idempotency: if memory already contains a buy for this asset, skip
-    if (boughtAssets.has(tradeData.asset)) {
+        // Double-check idempotency: if memory already contains a buy for this asset, skip
+        if (boughtAssets.has(tradeData.asset)) {
             appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
         const order = await postOrder(
-            tradeData.asset, 
-            priceHandler(tradeData.price), 
-            tradeData.size, 
-            tradeData.title, 
+            tradeData.asset,
+            priceHandler(tradeData.price),
+            tradeData.size,
+            tradeData.title,
             tradeData.outcome
         );
         if (order.success) {
@@ -125,10 +126,10 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);
             // Update storage with order details
-            storage.add(tradeData.asset, { 
-                orderID: order.orderID, 
-                asset: tradeData.asset, 
-                outcome: tradeData.outcome, 
+            storage.add(tradeData.asset, {
+                orderID: order.orderID,
+                asset: tradeData.asset,
+                outcome: tradeData.outcome,
                 status: order.status,
                 conditionId: tradeData.conditionId
             });
@@ -140,10 +141,10 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         } else {
             // Mark as failed
-            storage.add(tradeData.asset, { 
-                orderID: "", 
-                asset: tradeData.asset, 
-                outcome: tradeData.outcome, 
+            storage.add(tradeData.asset, {
+                orderID: "",
+                asset: tradeData.asset,
+                outcome: tradeData.outcome,
                 status: "failed",
                 conditionId: tradeData.conditionId
             });
@@ -211,10 +212,10 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
     const sellKey = `sell_${tradeData.asset}`;
     try {
         // Mark sell as processing to prevent race conditions
-        storage.add(sellKey, { 
-            orderID: "", 
-            asset: tradeData.asset, 
-            outcome: tradeData.outcome, 
+        storage.add(sellKey, {
+            orderID: "",
+            asset: tradeData.asset,
+            outcome: tradeData.outcome,
             status: "processing",
             conditionId: tradeData.conditionId
         });
@@ -230,10 +231,10 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
                 timestamp: tradeData.timestamp
             });
             // Update storage with sell status
-            storage.add(sellKey, { 
-                orderID: sellResult.orderID, 
-                asset: tradeData.asset, 
-                outcome: tradeData.outcome, 
+            storage.add(sellKey, {
+                orderID: sellResult.orderID,
+                asset: tradeData.asset,
+                outcome: tradeData.outcome,
                 status: "SOLD",
                 conditionId: tradeData.conditionId
             });
@@ -262,7 +263,7 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
  */
 async function handleTradeMessage(message: Message): Promise<void> {
     const currentMinutes = new Date().getMinutes();
-    
+
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
@@ -289,40 +290,42 @@ async function handleTradeMessage(message: Message): Promise<void> {
             side: tradeData.side,
             timestamp: tradeData.timestamp
         });
-
-    // 1. Check if we have an existing order and update its status
-    if (storage.hasId(tradeData.asset)) {
-            const storedOrder = storage.get(tradeData.asset);
-            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData.timestamp);
-        }
-
-        // 2. Check sell conditions (stop-loss) for matched buy orders
-        const sellKey = `sell_${tradeData.asset}`;
-        if (storage.hasId(tradeData.asset) && 
-            storage.get(tradeData.asset).status === "MATCHED" && 
-            !storage.hasId(sellKey)) {
-            
-            await executeSellLogic(tradeData, currentMinutes);
-        }
-
-        // 3. Check buy conditions for new opportunities (simplified — no hedge logic)
-        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
-            // Claim the buy slot; if false, another message already handled or we're done
-            if (!claimBuySlot(tradeData.asset)) {
-                continue;
+        // 0. check time
+        if (TRADING_RULES.START_TIME < currentMinutes) {
+            // 1. Check if we have an existing order and update its status
+            if (storage.hasId(tradeData.asset)) {
+                const storedOrder = storage.get(tradeData.asset);
+                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData.timestamp);
             }
-            try {
-                // Mark as processing in storage so concurrent parts of app see this
-                storage.add(tradeData.asset, { 
-                    orderID: "", 
-                    asset: tradeData.asset, 
-                    outcome: tradeData.outcome, 
-                    status: "processing",
-                    conditionId: tradeData.conditionId
-                });
-                await executeBuyLogic(tradeData);
-            } finally {
-                releaseBuySlot(tradeData.asset);
+
+            // 2. Check sell conditions (stop-loss) for matched buy orders
+            const sellKey = `sell_${tradeData.asset}`;
+            if (storage.hasId(tradeData.asset) &&
+                storage.get(tradeData.asset).status === "MATCHED" &&
+                !storage.hasId(sellKey)) {
+
+                await executeSellLogic(tradeData, currentMinutes);
+            }
+
+            // 3. Check buy conditions for new opportunities (simplified — no hedge logic)
+            if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
+                // Claim the buy slot; if false, another message already handled or we're done
+                if (!claimBuySlot(tradeData.asset)) {
+                    continue;
+                }
+                try {
+                    // Mark as processing in storage so concurrent parts of app see this
+                    storage.add(tradeData.asset, {
+                        orderID: "",
+                        asset: tradeData.asset,
+                        outcome: tradeData.outcome,
+                        status: "processing",
+                        conditionId: tradeData.conditionId
+                    });
+                    await executeBuyLogic(tradeData);
+                } finally {
+                    releaseBuySlot(tradeData.asset);
+                }
             }
         }
     }
@@ -371,7 +374,7 @@ async function main(): Promise<void> {
     } catch (e) {
         appLogger.error("Failed loading bought assets from DB: {error}", { error: e instanceof Error ? e.message : String(e) });
     }
-    
+
     new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
 }
 

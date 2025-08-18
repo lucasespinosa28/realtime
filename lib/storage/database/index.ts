@@ -56,6 +56,28 @@ export class DatabaseManager {
   }
 
   // TRADE OPERATIONS
+  getAllTradesUnfiltered(): Trade[] {
+    const rows = this.db.query("SELECT * FROM trades ORDER BY row_id ASC").all() as {
+      row_id: number;
+      asset: string;
+      outcome: string;
+      conditionId: string;
+      price: number;
+      size: number;
+      side: string;
+      timestamp: number;
+    }[];
+
+    return rows.map(row => ({
+      asset: row.asset,
+      outcome: row.outcome,
+      conditionId: row.conditionId,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    }));
+  }
   getTrade(asset: string): Trade | null {
     const row = this.db.query("SELECT * FROM trades WHERE asset = ? ORDER BY row_id DESC LIMIT 1").get(asset) as { 
       row_id: number;
@@ -112,6 +134,25 @@ export class DatabaseManager {
   }
 
   // BUY OPERATIONS
+  getAllBuysUnfiltered(): Buy[] {
+    const rows = this.db.query("SELECT * FROM buy_orders").all() as {
+      asset: string;
+      conditionId: string;
+      price: number;
+      size: number;
+      side: "BUY";
+      timestamp: number;
+    }[];
+
+    return rows.map(row => ({
+      asset: row.asset,
+      conditionId: row.conditionId,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    }));
+  }
   getAllBuyAssets(): string[] {
     const rows = this.db.query("SELECT asset FROM buy_orders").all() as { asset: string }[];
     return rows.map(r => r.asset);
@@ -167,6 +208,25 @@ export class DatabaseManager {
   }
 
   // SELL OPERATIONS
+  getAllSellsUnfiltered(): Sell[] {
+    const rows = this.db.query("SELECT * FROM sell_orders").all() as {
+      asset: string;
+      conditionId: string;
+      price: number;
+      size: number;
+      side: "SELL";
+      timestamp: number;
+    }[];
+
+    return rows.map(row => ({
+      asset: row.asset,
+      conditionId: row.conditionId,
+      price: row.price,
+      size: row.size,
+      side: row.side,
+      timestamp: row.timestamp
+    }));
+  }
   getSell(asset: string): Sell | null {
     const row = this.db.query("SELECT * FROM sell_orders WHERE asset = ?").get(asset) as { 
       asset: string; 

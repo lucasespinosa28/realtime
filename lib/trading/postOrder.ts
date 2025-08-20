@@ -4,7 +4,12 @@ import type { Order } from "./model";
 import { polymarketAPILogger } from "../../utils/logger";
 
 
-const postOrder = async (asset: string, price: number, size: number,title:string,outcome:string): Promise<Order> => {
+const postOrder = async (asset: string, price: number, size: number): Promise<Order> => {
+  if (price >= 0.99) {
+    polymarketAPILogger.error("Order not allowed: price must be less than 0.99");
+    return Promise.reject(new Error("Order not allowed: price must be less than 0.99"));
+  }
+
   try {
     const order: Order = await polymarket.createAndPostOrder(
       {
@@ -17,14 +22,6 @@ const postOrder = async (asset: string, price: number, size: number,title:string
       { tickSize: "0.01", negRisk: false },
       OrderType.GTC
     );
-
-
-    polymarketAPILogger.info("Buy order placed for {title} at price {outcome}:{price}", {
-      title,
-      outcome,
-      price
-    });
-
     return order;
   } catch (error) {
     polymarketAPILogger.error("Error placing order for {title}:{tokenID}: {error}", {

@@ -36,7 +36,7 @@ function releaseBuySlot(asset: string) {
 const TRADING_RULES = {
     START_TIME: 0,
     BUY_PRICE_THRESHOLD: 0.90,
-    MIN_BID_PRICE: 0.88,
+    MIN_BID_PRICE: 0.89,
     SELL_PRICE_THRESHOLD: 0.51,
     STOP_LOSS_MINUTES: 54
 } as const;
@@ -121,8 +121,6 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             tradeData.asset,
             priceHandler(tradeData.price),
             tradeData.size,
-            tradeData.title,
-            tradeData.outcome
         );
         if (order.success) {
             // Track in memory to avoid future DB checks

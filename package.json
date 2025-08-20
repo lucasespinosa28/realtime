@@ -13,7 +13,8 @@
     "test": "bun test",
     "lint": "bunx eslint",
     "export": "bun run scripts/export-db.ts",
-    "markets": "bun run scripts/fetch_all_markets.ts",
+    "markets": "bun run scripts/markets.ts",
+    "filtermarkets": "bun run scripts/filterMarkerts.ts",
     "ending": "bun run scripts/markets_ending_soon.ts",
     "sports": "bun run scripts/markets_with_tag_sports.ts"
   },

@@ -1,4 +1,4 @@
-import type { SubscriptionMessage, Message } from "./model";
+import type { SubscriptionMessage, Message, OrderBook } from "./model";
 import { ConnectionStatus } from "./model";
 import { websocketLogger } from "../../utils/logger";
 
@@ -62,7 +62,7 @@ export class RealTimeDataClient {
     private readonly onConnect?: (client: RealTimeDataClient) => void;
 
     /** Callback function executed when a custom message is received */
-    private readonly onCustomMessage?: (client: RealTimeDataClient, message: Message) => void;
+    private readonly onCustomMessage?: (client: RealTimeDataClient, message: Message | OrderBook) => void;
 
     /** Callback function executed on a connection status update */
     private readonly onStatusChange?: (status: ConnectionStatus) => void;

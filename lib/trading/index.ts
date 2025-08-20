@@ -1,7 +1,8 @@
 import polymarket from "./client";
 import postOrder from "./postOrder"
-import sellOrder from "./sellOrder"
+import sellMarketOrder from "./sellMarketOrder"
 import getBook from "./getBook";
 import priceHandler from "./priceHandler";
+import buyMarketOrder from "./buyMarketOrder";
 
-export { polymarket, getBook, postOrder, sellOrder, priceHandler };
+export { polymarket, getBook, postOrder, sellMarketOrder, buyMarketOrder, priceHandler };

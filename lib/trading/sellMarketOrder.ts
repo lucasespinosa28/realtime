@@ -3,7 +3,7 @@ import polymarket from "./client";
 import type { Order } from "./model";
 import { polymarketAPILogger } from "../../utils/logger";
 
-const sellOrder = async (asset: string, size: number, title: string, outcome: string): Promise<Order> => {
+const sellMarketOrder = async (asset: string, size: number, title: string): Promise<Order> => {
 
   try {
     const order: Order = await polymarket.createAndPostMarketOrder(
@@ -16,19 +16,10 @@ const sellOrder = async (asset: string, size: number, title: string, outcome: st
       { tickSize: "0.01", negRisk: false },
       OrderType.FAK
     );
-
-
-    polymarketAPILogger.info("Sell order placed for {title} outcome: {outcome} asset {asset}", {
-      title,
-      outcome,
-      asset
-    });
-
     return order;
   } catch (error) {
     polymarketAPILogger.error("Error placing order for {title}:{tokenID}: {error} asset:{asset}", {
       title,
-      outcome,
       error: error instanceof Error ? error.message : String(error),
       asset
     });
@@ -36,4 +27,4 @@ const sellOrder = async (asset: string, size: number, title: string, outcome: st
   }
 }
 
-export default sellOrder;
+export default sellMarketOrder;

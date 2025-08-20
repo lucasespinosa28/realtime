@@ -2,12 +2,14 @@ import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
 import { storage } from "./lib/storage/memory";
-import { getBook, polymarket, postOrder, priceHandler, sellOrder } from "./lib/trading";
+import { buyMarketOrder, getBook, polymarket, postOrder, priceHandler, sellMarketOrder } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 
-const database = new DatabaseManager("trades.sqlite");
+const upAsset = new Map();
+const downAsset = new Map();
+const database = new DatabaseManager("trades2.sqlite");
 // In-memory set of assets we've already bought (authoritative copy in DB)
 const boughtAssets = new Set<string>();
 
@@ -15,6 +17,8 @@ const boughtAssets = new Set<string>();
 // CRITICAL: This prevents multiple WebSocket messages from passing the buy condition
 // check simultaneously and placing duplicate orders for the same asset
 const processingAssets = new Set<string>();
+
+
 
 // Single, simple guard: claim a slot to buy a specific asset
 function claimBuySlot(asset: string): boolean {
@@ -30,11 +34,11 @@ function releaseBuySlot(asset: string) {
 
 // Constants for trading rules
 const TRADING_RULES = {
-    START_TIME: 49,
+    START_TIME: 0,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.88,
     SELL_PRICE_THRESHOLD: 0.51,
-    STOP_LOSS_MINUTES: 55
+    STOP_LOSS_MINUTES: 54
 } as const;
 
 // Types for better clarity
@@ -47,6 +51,22 @@ interface TradeData {
     timestamp: number;
     side: string;
     size: number;
+}
+
+function setOppositeSide(tradeData: TradeData) {
+    if (tradeData.outcome.includes("Up")) {
+        upAsset.set(tradeData.conditionId, tradeData.asset);
+    } else {
+        downAsset.set(tradeData.conditionId, tradeData.asset);
+    }
+}
+
+function getOppositeSide(tradeData: TradeData): string | undefined {
+    if (tradeData.outcome.includes("Up")) {
+        return downAsset.get(tradeData.conditionId);
+    } else {
+        return upAsset.get(tradeData.conditionId);
+    }
 }
 
 /**
@@ -201,7 +221,7 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
             status: "processing",
             conditionId: tradeData.conditionId
         });
-        const sellResult = await sellOrder(tradeData.asset, tradeData.size, tradeData.title, tradeData.outcome);
+        const sellResult = await sellMarketOrder(tradeData.asset, tradeData.size, tradeData.title);
         if (sellResult.success) {
             // Update storage with sell status
             storage.add(sellKey, {
@@ -220,6 +240,30 @@ async function executeSellLogic(tradeData: TradeData, currentMinutes: number): P
             // Remove processing status to allow retry
             storage.delete(sellKey);
             appLogger.warn("Sell order failed for {title}", { title: tradeData.title });
+        }
+        const opposite = getOppositeSide(tradeData);
+        if (opposite) {
+            const buyKey = `buy_${opposite}`;
+            const buyResult = await buyMarketOrder(opposite, tradeData.size, tradeData.title);
+            if (buyResult.success) {
+                // Update storage with buy status
+                storage.add(buyKey, {
+                    orderID: buyResult.orderID,
+                    asset: opposite,
+                    outcome: tradeData.outcome,
+                    status: "BOUGHT",
+                    conditionId: tradeData.conditionId
+                });
+                appLogger.info("STOP LOSS: Buy order placed for {title} at price {price} (minute: {minutes})", {
+                    title: tradeData.title,
+                    price: tradeData.price,
+                    minutes: currentMinutes
+                });
+            } else {
+                // Remove processing status to allow retry
+                storage.delete(buyKey);
+                appLogger.warn("Buy order failed for {title}", { title: tradeData.title });
+            }
         }
     } catch (error) {
         // Remove processing status to allow retry
@@ -253,6 +297,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             size: instruction.size
         };
 
+        setOppositeSide(tradeData);
         // Record all trades in database
         database.setTrade({
             asset: tradeData.asset,

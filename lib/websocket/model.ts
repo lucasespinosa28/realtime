@@ -81,6 +81,31 @@ export interface Message {
     connection_id: string;
 }
 
+
+export interface OrderBook {
+    connection_id: string;
+    payload: Payload[] | Payload;
+    timestamp: number;
+    topic: string;
+    type: string;
+}
+
+
+export interface Payload {
+    market: string;
+    asset_id: string;
+    timestamp: string;
+    hash: string;
+    bids: Book[];
+    asks: Book[];
+    min_order_size: string;
+    tick_size: string;
+    neg_risk: boolean;
+}
+export interface Book {
+    price: string;
+    size: string;
+}
 /**
  * Represents websocket connection status
  */

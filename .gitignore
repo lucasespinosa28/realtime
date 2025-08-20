@@ -176,3 +176,5 @@ dist
 
 
 db.*
+data
+*.sqlite*

@@ -117,9 +117,17 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
+        
+        const calculatedPrice = priceHandler(tradeData.price);
+        appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
+            title: tradeData.title,
+            originalPrice: tradeData.price,
+            calculatedPrice: calculatedPrice
+        });
+        
         const order = await postOrder(
             tradeData.asset,
-            priceHandler(tradeData.price),
+            calculatedPrice,
             tradeData.size,
         );
         if (order.success) {

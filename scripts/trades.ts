@@ -59,7 +59,8 @@ const ethereum = {
     outcomes: [] as number[]
 }
 
-const custom: any[] = []
+const ids: string[] = []
+const custom: Trade[] = []
 for (const offset of offsets) {
     const response = await fetch(`https://data-api.polymarket.com/trades?limit=500&offset=${offset}&takerOnly=false&&user=${CONSTANT.proxy}`, { method: 'GET', body: undefined });
     const data: Trade[] = await response.json();
@@ -68,15 +69,7 @@ for (const offset of offsets) {
         trade.date = unixToLocalDateTime(trade.timestamp);
         trades.push(trade)
         if (trade.side.includes("SELL")) {
-            custom.push({
-                slug: trade.eventSlug,
-                side: trade.side,
-                price: trade.price,
-                size: trade.size,
-                outcome: trade.outcome,
-                timestamp: trade.date,
-
-            })
+            ids.push(trade.conditionId);
         }
 
         if (trade.slug.includes("bitcoin")) {
@@ -190,4 +183,6 @@ await Bun.write("./data/RippleTimestamps.txt", ripple.TS_SEC.join(","));
 await Bun.write("./data/RippleOutcome.txt", ripple.outcomes.join(","));
 await Bun.write("./data/SolanaTimestamps.txt", solana.TS_SEC.join(","));
 await Bun.write("./data/SolanaOutcome.txt", solana.outcomes.join(","));
+
+
 await Bun.write("./data/custom.json", JSON.stringify(custom, null, 2));

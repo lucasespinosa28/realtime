@@ -72,7 +72,7 @@ function getOppositeSide(tradeData: TradeData): string | undefined {
 /**
  * Checks if a placed buy order has been matched
  */
-async function checkOrderStatus(conditionId: string, asset: string, outcome: string): Promise<void> {
+async function checkOrderStatus(conditionId: string, asset: string, outcome: string,tradeData: TradeData): Promise<void> {
     if (!storage.hasId(asset)) return; // nothing to check
     const storedOrder = storage.get(asset);
     // Skip if already matched or outcome doesn't match
@@ -87,7 +87,7 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
         const order = await polymarket.getOrder(orderId);
         if (order.status === "MATCHED") {
             appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
-                conditionId,
+                conditionId:tradeData.title,
                 outcome
             });
             // Update storage with matched status
@@ -330,7 +330,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             // 1. Check if we have an existing order and update its status
             if (storage.hasId(tradeData.asset)) {
                 const storedOrder = storage.get(tradeData.asset);
-                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome);
+                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome,tradeData);
             }
 
             // 2. Check sell conditions (stop-loss) for matched buy orders

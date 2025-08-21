@@ -1,12 +1,16 @@
+// ...existing code...
+
 /**
- * Parse time from a title string
- * Example: "Solana Up or Down - August 5, 6PM ET"
+ * Parse time from a slug string like:
+ * "ethereum-up-or-down-august-21-2am-et"
+ * Returns: { month: string, day: number, hour: number, ampm: string } | null
  */
-export function parseTitleTime(title: string): { month: string, day: number, hour: number, ampm: string } | null {
-  const match = title.match(/([A-Za-z]+) (\d+), (\d+)(AM|PM) ET/i);
+export function parseSlugTime(slug: string): { month: string, day: number, hour: number, ampm: string } | null {
+  // Example match: "august-21-2am-et"
+  const match = slug.match(/([a-z]+)-(\d+)-(\d+)(am|pm)-et/i);
   if (!match) return null;
   return {
-    month: match[1],
+    month: match[1][0].toUpperCase() + match[1].slice(1), // Capitalize
     day: parseInt(match[2], 10),
     hour: parseInt(match[3], 10),
     ampm: match[4].toUpperCase(),
@@ -51,19 +55,22 @@ export function getFormattedLocalTime(): string {
   return new Intl.DateTimeFormat("en-US", options).format(now);
 }
 /**
- * Check if title time matches current ET time
+ * Check if parsed time from a string matches current ET time.
+ * Accepts a parser function as parameter.
  */
-export function isTimeMatch(title: string): boolean {
-  const titleParts = parseTitleTime(title);
-  if (!titleParts) return false;
+export function isTimeMatch(
+  str: string,
+  parser: (input: string) => { month: string, day: number, hour: number, ampm: string } | null
+): boolean {
+  const timeParts = parser(str);
+  if (!timeParts) return false;
 
   const etParts = getCurrentETParts();
-
   return (
-    titleParts.month.toLowerCase() === etParts.month.toLowerCase() &&
-    titleParts.day === etParts.day &&
-    titleParts.hour === etParts.hour &&
-    titleParts.ampm === etParts.ampm
+    timeParts.month.toLowerCase() === etParts.month.toLowerCase() &&
+    timeParts.day === etParts.day &&
+    timeParts.hour === etParts.hour &&
+    timeParts.ampm === etParts.ampm
   );
 }
 
@@ -93,4 +100,21 @@ export function matchDateToday(timestamp: string): boolean {
     date.month === today.getMonth() + 1 &&
     date.day === today.getDate()
   );
+}
+
+/**
+ * Parse time from a question like:
+ * "Will the price of Ethereum be between $4100 and $4200 on August 21 at 4PM ET?"
+ * Returns: { month: string, day: number, hour: number, ampm: string } | null
+ */
+export function parseQuestionTime(question: string): { month: string, day: number, hour: number, ampm: string } | null {
+  // Example match: "on August 21 at 4PM ET"
+  const match = question.match(/on ([A-Za-z]+) (\d+)\s+at\s+(\d+)(AM|PM) ET/i);
+  if (!match) return null;
+  return {
+    month: match[1],
+    day: parseInt(match[2], 10),
+    hour: parseInt(match[3], 10),
+    ampm: match[4].toUpperCase(),
+  };
 }

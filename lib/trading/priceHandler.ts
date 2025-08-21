@@ -21,9 +21,9 @@ const priceHandler = (price: number): number => {
     price = 0.90;
   }
 
-  if (minutes <= 40) {
-    price = 0.90;
-    polymarketAPILogger.info("Time has {minutes} minutes (≤40), setting price to 0.90", { minutes });
+  if (minutes <= 50) {
+    price = 0.80;
+    polymarketAPILogger.info("Time has {minutes} minutes (≤50), setting price to 0.80", { minutes });
   }
   return price;
 };

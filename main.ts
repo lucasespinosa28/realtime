@@ -34,7 +34,8 @@ function releaseBuySlot(asset: string) {
 
 // Constants for trading rules
 const TRADING_RULES = {
-    START_TIME: 0,
+    START_TIME: 45,
+    END_TIME: 58,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
     SELL_PRICE_THRESHOLD: 0.24,
@@ -328,24 +329,24 @@ async function handleTradeMessage(message: Message): Promise<void> {
             title: message.payload.title,
             transactionHash: message.payload.transactionHash
         });
-        // 0. check time
-        if (TRADING_RULES.START_TIME < currentMinutes) {
-            // 1. Check if we have an existing order and update its status
-            if (storage.hasId(tradeData.asset)) {
-                const storedOrder = storage.get(tradeData.asset);
-                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
-            }
+        // 1. Always check if we have an existing order and update its status
+        if (storage.hasId(tradeData.asset)) {
+            const storedOrder = storage.get(tradeData.asset);
+            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
+        }
 
-            // 2. Check sell conditions (stop-loss) for matched buy orders
-            const sellKey = `sell_${tradeData.asset}`;
-            if (storage.hasId(tradeData.asset) &&
-                storage.get(tradeData.asset).status === "MATCHED" &&
-                !storage.hasId(sellKey)) {
+        // 2. Always check sell conditions (stop-loss) for matched buy orders
+        const sellKey = `sell_${tradeData.asset}`;
+        if (storage.hasId(tradeData.asset) &&
+            storage.get(tradeData.asset).status === "MATCHED" &&
+            !storage.hasId(sellKey)) {
 
-                await executeSellLogic(tradeData, currentMinutes);
-            }
+            await executeSellLogic(tradeData, currentMinutes);
+        }
 
-            // 3. Check buy conditions for new opportunities (simplified — no hedge logic)
+        // 3. Check buy conditions only within the strategic window (START_TIME, END_TIME]
+        const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes && currentMinutes <= TRADING_RULES.END_TIME;
+        if (withinBuyWindow) {
             if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
                 // Claim the buy slot; if false, another message already handled or we're done
                 if (!claimBuySlot(tradeData.asset)) {
@@ -365,6 +366,8 @@ async function handleTradeMessage(message: Message): Promise<void> {
                     releaseBuySlot(tradeData.asset);
                 }
             }
+        } else {
+            appLogger.debug("Buy ignored: Outside of trading window (current minute: {minutes})", { minutes: currentMinutes });
         }
     }
 }

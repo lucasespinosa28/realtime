@@ -2,7 +2,7 @@ import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
 import { logger, storage } from "./lib/storage/memory";
-import { getBook, postOrder, priceHandler } from "./lib/trading";
+import { getBook, polymarket, postOrder, priceHandler } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
@@ -32,6 +32,45 @@ interface TradeData {
     timestamp: number;
     side: string;
     size: number;
+}
+
+
+/**
+ * Checks if a placed buy order has been matched
+ */
+async function checkOrderStatus(conditionId: string, asset: string, outcome: string, tradeData: TradeData): Promise<void> {
+    if (!storage.hasId(asset)) return; // nothing to check
+    const storedOrder = storage.get(asset);
+    // Skip if already matched or outcome doesn't match
+    if (storedOrder.status === "MATCHED" || storedOrder.outcome !== outcome) {
+        return;
+    }
+    const orderId = storedOrder.orderID;
+    if (!orderId) {
+        return;
+    }
+    try {
+        const order = await polymarket.getOrder(orderId);
+        if (order.status === "MATCHED") {
+            appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
+                conditionId: tradeData.title,
+                outcome
+            });
+            // Update storage with matched status
+            storage.add(asset, {
+                orderID: orderId,
+                asset: asset,
+                outcome: outcome,
+                status: "MATCHED",
+                conditionId: conditionId
+            });
+        }
+    } catch (error) {
+        appLogger.error("Error checking order status for {conditionId}: {error}", {
+            conditionId: tradeData.title,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    }
 }
 
 /**
@@ -175,6 +214,7 @@ function simulateBuyOrder(tradeData: TradeData): void {
  * Main message handler for trade events
  */
 async function handleTradeMessage(message: Message): Promise<void> {
+     const currentMinutes = new Date().getMinutes();
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
@@ -246,34 +286,41 @@ async function handleTradeMessage(message: Message): Promise<void> {
             title: message.payload.title,
             transactionHash: message.payload.transactionHash
         });
+        // 1. Always check if we have an existing order and update its status
+        if (storage.hasId(tradeData.asset)) {
+            const storedOrder = storage.get(tradeData.asset);
+            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
+        }
+        const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
+        if (withinBuyWindow) {
+            if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
+                // Skip if already processed, claimed, or asset already bought
+                if (
+                    processedConditionIds.has(tradeData.conditionId) ||
+                    inFlightConditionIds.has(tradeData.conditionId) ||
+                    boughtAssets.has(tradeData.asset)
+                ) {
+                    continue;
+                }
 
-        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
-            // Skip if already processed, claimed, or asset already bought
-            if (
-                processedConditionIds.has(tradeData.conditionId) ||
-                inFlightConditionIds.has(tradeData.conditionId) ||
-                boughtAssets.has(tradeData.asset)
-            ) {
-                continue;
-            }
+                // Claim this conditionId to prevent duplicate processing
+                inFlightConditionIds.add(tradeData.conditionId);
 
-            // Claim this conditionId to prevent duplicate processing
-            inFlightConditionIds.add(tradeData.conditionId);
+                // Mark processing for visibility
+                storage.add(tradeData.asset, {
+                    orderID: "",
+                    asset: tradeData.asset,
+                    outcome: tradeData.outcome,
+                    status: "processing",
+                    conditionId: tradeData.conditionId
+                });
 
-            // Mark processing for visibility
-            storage.add(tradeData.asset, {
-                orderID: "",
-                asset: tradeData.asset,
-                outcome: tradeData.outcome,
-                status: "processing",
-                conditionId: tradeData.conditionId
-            });
-
-            try {
-                await executeBuyLogic(tradeData);
-            } finally {
-                // Always release the claim so future retries are possible if not processed
-                inFlightConditionIds.delete(tradeData.conditionId);
+                try {
+                    await executeBuyLogic(tradeData);
+                } finally {
+                    // Always release the claim so future retries are possible if not processed
+                    inFlightConditionIds.delete(tradeData.conditionId);
+                }
             }
         }
     }

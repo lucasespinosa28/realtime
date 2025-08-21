@@ -27,15 +27,15 @@ export async function fetchAndStoreMarkets() {
             page++;
     }
 
-    await Bun.write("latestCursor.txt", latestCursor.toString());
+    await Bun.write("./data/latestCursor.txt", latestCursor.toString());
 }
 
 export async function updateMarketsFromCursor() {
     let nextCursor = "";
     try {
-        nextCursor = await Bun.file("latestCursor.txt").text();
+        nextCursor = await Bun.file("./data/latestCursor.txt").text();
     } catch {
-        console.error("No latestCursor.txt found, cannot resume.");
+        console.error("No ./data/latestCursor.txt found, cannot resume.");
         return;
     }
     let page = 1;
@@ -57,7 +57,11 @@ export async function updateMarketsFromCursor() {
         nextCursor = next_cursor;
         page++;
     }
-    await Bun.write("latestCursor.txt", latestCursor.toString());
+    await Bun.write("./data/latestCursor.txt", latestCursor.toString());
 }
 
-await fetchAndStoreMarkets()
+if(await Bun.file("./data/latestCursor.txt").exists()){
+    await updateMarketsFromCursor()
+}else{
+    await fetchAndStoreMarkets()
+}

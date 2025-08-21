@@ -17,6 +17,7 @@ const inFlightConditionIds = new Set<string>();
 
 // Constants for trading rules
 const TRADING_RULES = {
+    START_TIME: 45,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
 } as const;
@@ -42,9 +43,9 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
         if (processedConditionIds.has(tradeData.conditionId)) {
             // Only log the first time we see this conditionId
             if (!logger.get(`logged:${tradeData.conditionId}`)) {
-                appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", { 
-                    conditionId: tradeData.conditionId, 
-                    asset: tradeData.asset 
+                appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", {
+                    conditionId: tradeData.conditionId,
+                    asset: tradeData.asset
                 });
                 logger.add(`logged:${tradeData.conditionId}`, true);
             }
@@ -157,7 +158,16 @@ async function handleTradeMessage(message: Message): Promise<void> {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-    
+        if (message.payload.eventSlug.includes(instruction.jump)) {
+             if (!logger.get(`logged:${message.payload.eventSlug}`)) {
+                appLogger.info("Order jumped {jump}", {
+                    jump: message.payload.eventSlug
+                });
+                logger.add(`logged:${message.payload.eventSlug}`, true);
+            }
+            return;
+        }
+
         const tradeData: TradeData = {
             conditionId: message.payload.conditionId,
             asset: message.payload.asset,
@@ -168,6 +178,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             side: message.payload.side,
             size: instruction.size
         };
+
 
         // setOppositeSide(tradeData);
         // Record all trades in database
@@ -220,7 +231,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
                 inFlightConditionIds.delete(tradeData.conditionId);
             }
         }
-    } 
+    }
 }
 
 /**

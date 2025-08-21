@@ -1,4 +1,13 @@
-// ...existing code...
+export function parseTitleTime(title: string): { month: string, day: number, hour: number, ampm: string } | null {
+  const match = title.match(/([A-Za-z]+) (\d+), (\d+)(AM|PM) ET/i);
+  if (!match) return null;
+  return {
+    month: match[1],
+    day: parseInt(match[2], 10),
+    hour: parseInt(match[3], 10),
+    ampm: match[4].toUpperCase(),
+  };
+}
 
 /**
  * Parse time from a slug string like:
@@ -71,6 +80,21 @@ export function isTimeMatch(
     timeParts.day === etParts.day &&
     timeParts.hour === etParts.hour &&
     timeParts.ampm === etParts.ampm
+  );
+}
+
+export function isTimeMatchLegcy(title: string): boolean {
+  const titleParts = parseTitleTime(title);
+  if (!titleParts) return false;
+
+  const etParts = getCurrentETParts();
+  
+
+  return (
+    titleParts.month.toLowerCase() === etParts.month.toLowerCase() &&
+    titleParts.day === etParts.day &&
+    titleParts.hour === etParts.hour &&
+    titleParts.ampm === etParts.ampm
   );
 }
 

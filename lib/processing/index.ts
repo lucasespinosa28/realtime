@@ -1,5 +1,5 @@
 import type { Message } from "../websocket";
-import { isTimeMatch } from "../../utils/time";
+import { isTimeMatchLegcy } from "../../utils/time";
 
 /**
  * Checks if the message should be processed
@@ -11,7 +11,7 @@ export const shouldProcessMessage = (message: Message, slug: string): boolean =>
     }
 
     // Check if time matches current ET time
-    if (!isTimeMatch(message.payload.title)) {
+    if (!isTimeMatchLegcy(message.payload.title)) {
         return false;
     }
 

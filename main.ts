@@ -37,8 +37,9 @@ const TRADING_RULES = {
     START_TIME: 0,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
-    SELL_PRICE_THRESHOLD: 0.51,
-    STOP_LOSS_MINUTES: 54
+    SELL_PRICE_THRESHOLD: 0.24,
+    STOP_LOSS_MINUTES: 54,
+    BONUS: 1.1
 } as const;
 
 // Types for better clarity
@@ -72,7 +73,7 @@ function getOppositeSide(tradeData: TradeData): string | undefined {
 /**
  * Checks if a placed buy order has been matched
  */
-async function checkOrderStatus(conditionId: string, asset: string, outcome: string,tradeData: TradeData): Promise<void> {
+async function checkOrderStatus(conditionId: string, asset: string, outcome: string, tradeData: TradeData): Promise<void> {
     if (!storage.hasId(asset)) return; // nothing to check
     const storedOrder = storage.get(asset);
     // Skip if already matched or outcome doesn't match
@@ -87,7 +88,7 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
         const order = await polymarket.getOrder(orderId);
         if (order.status === "MATCHED") {
             appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
-                conditionId:tradeData.title,
+                conditionId: tradeData.title,
                 outcome
             });
             // Update storage with matched status
@@ -117,14 +118,14 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-        
+
         const calculatedPrice = priceHandler(tradeData.price);
         appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
             calculatedPrice: calculatedPrice
         });
-        
+
         const order = await postOrder(
             tradeData.asset,
             calculatedPrice,
@@ -291,7 +292,9 @@ async function handleTradeMessage(message: Message): Promise<void> {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-
+        if (message.payload.eventSlug.includes("bitcoin")) {
+            return;
+        }
         const tradeData: TradeData = {
             conditionId: message.payload.conditionId,
             asset: message.payload.asset,
@@ -330,7 +333,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             // 1. Check if we have an existing order and update its status
             if (storage.hasId(tradeData.asset)) {
                 const storedOrder = storage.get(tradeData.asset);
-                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome,tradeData);
+                await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
             }
 
             // 2. Check sell conditions (stop-loss) for matched buy orders

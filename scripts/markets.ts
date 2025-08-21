@@ -60,4 +60,4 @@ export async function updateMarketsFromCursor() {
     await Bun.write("latestCursor.txt", latestCursor.toString());
 }
 
-await updateMarketsFromCursor()
+await fetchAndStoreMarkets()

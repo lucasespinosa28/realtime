@@ -16,9 +16,10 @@ export function parseTitleTime(title: string): { month: string, day: number, hou
 /**
  * Get current Eastern Time parts
  */
-export function getCurrentETParts(): { month: string, day: number, hour: number, ampm: string } {
+export function getCurrentETParts(): { year: number, month: string, day: number, hour: number, ampm: string } {
   const now = new Date();
   const options: Intl.DateTimeFormatOptions = {
+    year: "numeric",
     month: "long",
     day: "numeric",
     hour: "numeric",
@@ -26,11 +27,12 @@ export function getCurrentETParts(): { month: string, day: number, hour: number,
     timeZone: "America/New_York"
   };
   const parts = new Intl.DateTimeFormat("en-US", options).formatToParts(now);
+  const year = parseInt(parts.find(p => p.type === "year")?.value || "0", 10);
   const month = parts.find(p => p.type === "month")?.value || "";
   const day = parseInt(parts.find(p => p.type === "day")?.value || "0", 10);
   const hour = parseInt(parts.find(p => p.type === "hour")?.value || "0", 10);
   const ampm = (parts.find(p => p.type === "dayPeriod")?.value || "AM").toUpperCase();
-  return { month, day, hour, ampm };
+  return { year, month, day, hour, ampm };
 }
 
 /**
@@ -48,7 +50,6 @@ export function getFormattedLocalTime(): string {
   };
   return new Intl.DateTimeFormat("en-US", options).format(now);
 }
-
 /**
  * Check if title time matches current ET time
  */
@@ -72,4 +73,24 @@ export function isTimeMatch(title: string): boolean {
 export function extractCoinFromEvent(eventSlug: string): string | undefined {
   if (typeof eventSlug !== 'string') return undefined;
   return eventSlug.split('-')[0];
+}
+//2025-08-23T00:00:00Z
+
+export function parseEndDateIso(timestamp: string): { year: number, month: number, day: number } | null {
+  const date = timestamp.split("T")[0].split("-")
+  if (date.length !== 3) return null;
+  return { year:Number(date[0]), month:Number(date[1]), day:Number(date[2]) };
+}
+  
+
+export function matchDateToday(timestamp: string): boolean {
+  const date = parseEndDateIso(timestamp);
+  if (!date) return false;
+
+  const today = new Date();
+  return (
+    date.year === today.getFullYear() &&
+    date.month === today.getMonth() + 1 &&
+    date.day === today.getDate()
+  );
 }

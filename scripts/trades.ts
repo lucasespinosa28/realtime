@@ -1,4 +1,6 @@
 import { CONSTANT } from "../config";
+import { polymarket } from "../lib/trading";
+import type { Market } from "../lib/trading/model";
 
 const offsets: number[] = [0, 500, 1000]
 interface Trade {
@@ -28,46 +30,61 @@ function unixToLocalDateTime(unixTimestamp: number): string {
 }
 
 const trades: Trade[] = [];
+const loss: Market[] = [];
 const TS_SEC: number[] = [];
 const outcomes: number[] = [];
 
 const solana = {
     buy: 0,
-    sell: 0,
+    sell: 2,
     TS_SEC: [] as number[],
     outcomes: [] as number[]
 }
 
 const bitcoin = {
     buy: 0,
-    sell: 0,
+    sell: 20,
     TS_SEC: [] as number[],
     outcomes: [] as number[]
 }
 
 const ripple = {
     buy: 0,
-    sell: 0,
+    sell: 7,
     TS_SEC: [] as number[],
     outcomes: [] as number[]
 }
 
 const ethereum = {
     buy: 0,
-    sell: 0,
+    sell: 10,
     TS_SEC: [] as number[],
     outcomes: [] as number[]
 }
 
 const ids: string[] = []
 const custom: Trade[] = []
+const sizes: number[] = []
 for (const offset of offsets) {
     const response = await fetch(`https://data-api.polymarket.com/trades?limit=500&offset=${offset}&takerOnly=false&&user=${CONSTANT.proxy}`, { method: 'GET', body: undefined });
     const data: Trade[] = await response.json();
     let outcome: number;
     for (const trade of data) {
+        // const market: Market = await polymarket.getMarket(trade.conditionId)
+
+        // for (const token of market.tokens) {
+        //     if (trade.asset === token.token_id) {
+        //         if (trade.outcome === token.outcome) {
+        //             if (!token.winner) {
+        //                 console.log(market.question)
+        //                 loss.push(market);
+        //             }
+        //         }
+        //     }
+        // }
         trade.date = unixToLocalDateTime(trade.timestamp);
         trades.push(trade)
+        sizes.push(trade.size)
         if (trade.side.includes("SELL")) {
             ids.push(trade.conditionId);
         }
@@ -173,6 +190,7 @@ checkWinRate(ethereum, "Ethereum");
 checkWinRate(bitcoin, "Bitcoin");
 checkWinRate(ripple, "Ripple");
 checkWinRate(solana, "Solana");
+console.log(`Avarage size:${(sizes.reduce((a, b) => a + b, 0) / sizes.length).toFixed(0)}`);
 // ...existing code...
 await Bun.write("./data/trades.json", JSON.stringify(trades, null, 2));
 await Bun.write("./data/BitcoinTimestamps.txt", bitcoin.TS_SEC.join(","));
@@ -186,3 +204,5 @@ await Bun.write("./data/SolanaOutcome.txt", solana.outcomes.join(","));
 
 
 await Bun.write("./data/custom.json", JSON.stringify(custom, null, 2));
+await Bun.write("./data/loss.json", JSON.stringify(loss, null, 2));
+console.log(loss.length)

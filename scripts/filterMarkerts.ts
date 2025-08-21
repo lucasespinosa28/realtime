@@ -1,32 +1,39 @@
 import { DatabaseManager } from "../lib/storage/database";
-import type { Market } from "../lib/trading/model";
+import type { Market, MarketToken } from "../lib/trading/model";
+import { matchDateToday } from "../utils/time";
 
-//Sports
+
+function checkTokens(tokens:MarketToken[]):boolean{
+    for(const token of tokens){
+        if(token.price === 0){
+            return false;
+        }
+    }
+    return true;
+}
 const database = new DatabaseManager("markets.sqlite");
-let count: number = 0;
 const markerts: Market[] = [];
 const markets = database.getAllMarkets();
-const monthName = new Date().toLocaleString('default', { month: 'long' });
+// const monthName = new Date().toLocaleString('default', { month: 'long' });
 for (const market of markets) {
-    if (market.tags.includes("Up or Down") && market.market_slug.includes(monthName.toLowerCase()) && market.accepting_orders) {
-        count++;
-        markerts.push(market);
+    if (market.closed === false) {
+        if (market.end_date_iso != null && matchDateToday(market.end_date_iso) && checkTokens(market.tokens)) {
+            console.log(market.question)
+            markerts.push(market);
+        }
+        if (market.game_start_time != null && matchDateToday(market.game_start_time) && checkTokens(market.tokens)) {
+            console.log(market.question)
+            markerts.push(market);
+        }
     }
-    // if (market.end_date_iso) {
-    //     if (market.accepting_orders && market.tags.includes("Sports") && market.end_date_iso.includes("2025-08-19")) {
-    //         count++;
-    //         markerts.push(market);
-    //     }
-    // }
-    // if(market.market_slug.includes("mlb-hou-det-2025-08-19")){
-    //     count++;
-    //      markerts.push(market);
-    // }
-
 
 }
+const uniqueMarkets = Array.from(
+  new Map(markerts.map(market => [market.condition_id, market])).values()
+);
 
-console.log(`Total markets in database: ${count}`);
-await Bun.write("crypto.json", JSON.stringify(markerts, null, 2));
-console.log(monthName)
+console.log(`Total unique markets in database: ${uniqueMarkets.length}`);
+await Bun.write("markets.json", JSON.stringify(uniqueMarkets, null, 2));
+
+// console.log(monthName)
 

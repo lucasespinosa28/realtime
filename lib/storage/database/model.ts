@@ -52,7 +52,7 @@ export interface Market {
     description: string;
     market_slug: string;
     end_date_iso: string;
-    game_start_time: null | string | number;
+    game_start_time: null | string;
     seconds_delay: number;
     fpmm: string;
     maker_base_fee: number;

@@ -2,7 +2,8 @@ import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
 import { logger, storage } from "./lib/storage/memory";
-import { getBook, polymarket, postOrder, priceHandler } from "./lib/trading";
+import { getBook, polymarket, postOrder } from "./lib/trading";
+import priceHandler, { priceSimulatedHandler } from "./lib/trading/priceHandler";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
@@ -17,7 +18,7 @@ const inFlightConditionIds = new Set<string>();
 
 // Constants for trading rules
 const TRADING_RULES = {
-    START_TIME: 45,
+    START_TIME: 0,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
 } as const;
@@ -96,7 +97,9 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         }
 
-        const calculatedPrice = priceHandler(tradeData);
+
+
+        const calculatedPrice = priceSimulatedHandler(tradeData);
         appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
@@ -361,3 +364,5 @@ async function main(): Promise<void> {
 }
 
 main().catch(console.error);
+
+

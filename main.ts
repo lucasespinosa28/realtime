@@ -364,9 +364,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
                     releaseBuySlot(tradeData.asset);
                 }
             }
-        } else {
-            appLogger.debug("Buy ignored: Outside of trading window (current minute: {minutes})", { minutes: currentMinutes });
-        }
+        } 
     }
 }
 

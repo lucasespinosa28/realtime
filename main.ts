@@ -293,9 +293,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
         }
-        if (message.payload.eventSlug.includes("bitcoin")) {
-            return;
-        }
+    
         const tradeData: TradeData = {
             conditionId: message.payload.conditionId,
             asset: message.payload.asset,

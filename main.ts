@@ -151,21 +151,33 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
 }
 
 /**
+ * Simulate a buy order (no API call).
+ */
+function simulateBuyOrder(tradeData: TradeData): void {
+    boughtAssets.add(tradeData.asset);
+    processedConditionIds.add(tradeData.conditionId);
+    storage.add(tradeData.asset, {
+        orderID: "SIMULATED",
+        asset: tradeData.asset,
+        outcome: tradeData.outcome,
+        status: "filled",
+        conditionId: tradeData.conditionId
+    });
+    appLogger.info("Simulated buy order placed for {title} at price {price} asset {asset}, conditionId {conditionId}", {
+        title: tradeData.title,
+        price: tradeData.price,
+        asset: tradeData.asset,
+        conditionId: tradeData.conditionId
+    });
+}
+
+/**
  * Main message handler for trade events
  */
 async function handleTradeMessage(message: Message): Promise<void> {
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
-        }
-        if (message.payload.eventSlug.includes(instruction.jump)) {
-             if (!logger.get(`logged:${message.payload.eventSlug}`)) {
-                appLogger.info("Order jumped {jump}", {
-                    jump: message.payload.eventSlug
-                });
-                logger.add(`logged:${message.payload.eventSlug}`, true);
-            }
-            return;
         }
 
         const tradeData: TradeData = {
@@ -179,6 +191,38 @@ async function handleTradeMessage(message: Message): Promise<void> {
             size: instruction.size
         };
 
+        // If this event is "bitcoin" and price is 0.05, simulate a buy and skip normal flow
+        const isBitcoinEvent =
+            (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false) ||
+            (tradeData.title?.toLowerCase().includes("bitcoin") ?? false);
+
+        if (isBitcoinEvent && tradeData.price === 0.05) {
+            if (
+                processedConditionIds.has(tradeData.conditionId) ||
+                inFlightConditionIds.has(tradeData.conditionId) ||
+                boughtAssets.has(tradeData.asset)
+            ) {
+                continue;
+            }
+            inFlightConditionIds.add(tradeData.conditionId);
+            try {
+                simulateBuyOrder(tradeData);
+            } finally {
+                inFlightConditionIds.delete(tradeData.conditionId);
+            }
+            continue;
+        }
+
+        // Move jump check after tradeData init so simulation can run
+        if (message.payload.eventSlug.includes(instruction.jump)) {
+            if (!logger.get(`logged:${message.payload.eventSlug}`)) {
+                appLogger.info("Order jumped {jump}", {
+                    jump: message.payload.eventSlug
+                });
+                logger.add(`logged:${message.payload.eventSlug}`, true);
+            }
+            return;
+        }
 
         // setOppositeSide(tradeData);
         // Record all trades in database
@@ -202,6 +246,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             title: message.payload.title,
             transactionHash: message.payload.transactionHash
         });
+
         if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
             // Skip if already processed, claimed, or asset already bought
             if (

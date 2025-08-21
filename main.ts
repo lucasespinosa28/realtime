@@ -2,45 +2,21 @@ import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
 import { storage } from "./lib/storage/memory";
-import { buyMarketOrder, getBook, polymarket, postOrder, priceHandler, sellMarketOrder } from "./lib/trading";
+import { getBook, postOrder, priceHandler } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
 import { appLogger, configureLogging } from "./utils/logger";
 
-const upAsset = new Map();
-const downAsset = new Map();
-const database = new DatabaseManager("trades2.sqlite");
+const database = new DatabaseManager("trades4.sqlite");
 // In-memory set of assets we've already bought (authoritative copy in DB)
 const boughtAssets = new Set<string>();
-
-// Synchronous lock to prevent race conditions across multiple async message handlers
-// CRITICAL: This prevents multiple WebSocket messages from passing the buy condition
-// check simultaneously and placing duplicate orders for the same asset
-const processingAssets = new Set<string>();
-
-
-
-// Single, simple guard: claim a slot to buy a specific asset
-function claimBuySlot(asset: string): boolean {
-    if (boughtAssets.has(asset)) return false; // already bought before
-    if (processingAssets.has(asset)) return false; // another handler is buying now
-    processingAssets.add(asset);
-    return true;
-}
-
-function releaseBuySlot(asset: string) {
-    processingAssets.delete(asset);
-}
+// Track which conditionIds we've already placed orders for
+const processedConditionIds = new Set<string>();
 
 // Constants for trading rules
 const TRADING_RULES = {
-    START_TIME: 45,
-    END_TIME: 58,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
-    SELL_PRICE_THRESHOLD: 0.24,
-    STOP_LOSS_MINUTES: 54,
-    BONUS: 1.1
 } as const;
 
 // Types for better clarity
@@ -55,65 +31,20 @@ interface TradeData {
     size: number;
 }
 
-function setOppositeSide(tradeData: TradeData) {
-    if (tradeData.outcome.includes("Up")) {
-        upAsset.set(tradeData.conditionId, tradeData.asset);
-    } else {
-        downAsset.set(tradeData.conditionId, tradeData.asset);
-    }
-}
-
-function getOppositeSide(tradeData: TradeData): string | undefined {
-    if (tradeData.outcome.includes("Up")) {
-        return downAsset.get(tradeData.conditionId);
-    } else {
-        return upAsset.get(tradeData.conditionId);
-    }
-}
-
-/**
- * Checks if a placed buy order has been matched
- */
-async function checkOrderStatus(conditionId: string, asset: string, outcome: string, tradeData: TradeData): Promise<void> {
-    if (!storage.hasId(asset)) return; // nothing to check
-    const storedOrder = storage.get(asset);
-    // Skip if already matched or outcome doesn't match
-    if (storedOrder.status === "MATCHED" || storedOrder.outcome !== outcome) {
-        return;
-    }
-    const orderId = storedOrder.orderID;
-    if (!orderId) {
-        return;
-    }
-    try {
-        const order = await polymarket.getOrder(orderId);
-        if (order.status === "MATCHED") {
-            appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
-                conditionId: tradeData.title,
-                outcome
-            });
-            // Update storage with matched status
-            storage.add(asset, {
-                orderID: orderId,
-                asset: asset,
-                outcome: outcome,
-                status: "MATCHED",
-                conditionId: conditionId
-            });
-        }
-    } catch (error) {
-        appLogger.error("Error checking order status for {conditionId}: {error}", {
-            conditionId,
-            error: error instanceof Error ? error.message : String(error)
-        });
-    }
-}
-
 /**
  * Places a buy order for a given asset
  */
 async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
     try {
+        // Check if we already processed this condition
+        if (processedConditionIds.has(tradeData.conditionId)) {
+            appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", { 
+                conditionId: tradeData.conditionId, 
+                asset: tradeData.asset 
+            });
+            return true;
+        }
+
         // Double-check idempotency: if memory already contains a buy for this asset, skip
         if (boughtAssets.has(tradeData.asset)) {
             appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
@@ -135,6 +66,8 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
         if (order.success) {
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);
+            // Mark this conditionId as processed
+            processedConditionIds.add(tradeData.conditionId);
             // Update storage with order details
             storage.add(tradeData.asset, {
                 orderID: order.orderID,
@@ -143,10 +76,11 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 status: order.status,
                 conditionId: tradeData.conditionId
             });
-            appLogger.info("Buy order placed for {title} at price {price} asset {asset}", {
+            appLogger.info("Buy order placed for {title} at price {price} asset {asset}, conditionId {conditionId}", {
                 title: tradeData.title,
                 price: priceHandler(tradeData.price),
-                asset: tradeData.asset
+                asset: tradeData.asset,
+                conditionId: tradeData.conditionId
             });
             return true;
         } else {
@@ -209,86 +143,10 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
     }
 }
 
-// Hedge strategy removed for simplicity and to avoid duplicate/complex buy paths
-
-/**
- * Executes sell logic when stop-loss conditions are met
- */
-async function executeSellLogic(tradeData: TradeData, currentMinutes: number): Promise<void> {
-    // Check stop-loss conditions: price < 0.51 and after minute 55
-    if (tradeData.price >= TRADING_RULES.SELL_PRICE_THRESHOLD || currentMinutes <= TRADING_RULES.STOP_LOSS_MINUTES) {
-        return;
-    }
-    const sellKey = `sell_${tradeData.asset}`;
-    try {
-        // Mark sell as processing to prevent race conditions
-        storage.add(sellKey, {
-            orderID: "",
-            asset: tradeData.asset,
-            outcome: tradeData.outcome,
-            status: "processing",
-            conditionId: tradeData.conditionId
-        });
-        const sellResult = await sellMarketOrder(tradeData.asset, tradeData.size, tradeData.title);
-        if (sellResult.success) {
-            // Update storage with sell status
-            storage.add(sellKey, {
-                orderID: sellResult.orderID,
-                asset: tradeData.asset,
-                outcome: tradeData.outcome,
-                status: "SOLD",
-                conditionId: tradeData.conditionId
-            });
-            appLogger.info("STOP LOSS: Sell order placed for {title} at price {price} (minute: {minutes})", {
-                title: tradeData.title,
-                price: tradeData.price,
-                minutes: currentMinutes
-            });
-        } else {
-            // Remove processing status to allow retry
-            storage.delete(sellKey);
-            appLogger.warn("Sell order failed for {title}", { title: tradeData.title });
-        }
-        const opposite = getOppositeSide(tradeData);
-        if (opposite) {
-            const buyKey = `buy_${opposite}`;
-            const buyResult = await buyMarketOrder(opposite, tradeData.size, tradeData.title);
-            if (buyResult.success) {
-                // Update storage with buy status
-                storage.add(buyKey, {
-                    orderID: buyResult.orderID,
-                    asset: opposite,
-                    outcome: tradeData.outcome,
-                    status: "BOUGHT",
-                    conditionId: tradeData.conditionId
-                });
-                appLogger.info("STOP LOSS: Buy order placed for {title} at price {price} (minute: {minutes})", {
-                    title: tradeData.title,
-                    price: tradeData.price,
-                    minutes: currentMinutes
-                });
-            } else {
-                // Remove processing status to allow retry
-                storage.delete(buyKey);
-                appLogger.warn("Buy order failed for {title}", { title: tradeData.title });
-            }
-        }
-    } catch (error) {
-        // Remove processing status to allow retry
-        storage.delete(sellKey);
-        appLogger.error("Error in sell logic for {title}: {error}", {
-            title: tradeData.title,
-            error: error instanceof Error ? error.message : String(error)
-        });
-    }
-}
-
 /**
  * Main message handler for trade events
  */
 async function handleTradeMessage(message: Message): Promise<void> {
-    const currentMinutes = new Date().getMinutes();
-
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;
@@ -305,7 +163,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
             size: instruction.size
         };
 
-        setOppositeSide(tradeData);
+        // setOppositeSide(tradeData);
         // Record all trades in database
         database.setTrade({
             asset: tradeData.asset,
@@ -327,31 +185,8 @@ async function handleTradeMessage(message: Message): Promise<void> {
             title: message.payload.title,
             transactionHash: message.payload.transactionHash
         });
-        // 1. Always check if we have an existing order and update its status
-        if (storage.hasId(tradeData.asset)) {
-            const storedOrder = storage.get(tradeData.asset);
-            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
-        }
-
-        // 2. Always check sell conditions (stop-loss) for matched buy orders
-        const sellKey = `sell_${tradeData.asset}`;
-        if (storage.hasId(tradeData.asset) &&
-            storage.get(tradeData.asset).status === "MATCHED" &&
-            !storage.hasId(sellKey)) {
-
-            await executeSellLogic(tradeData, currentMinutes);
-        }
-
-        // 3. Check buy conditions only within the strategic window (START_TIME, END_TIME]
-        const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes && currentMinutes <= TRADING_RULES.END_TIME;
-        if (withinBuyWindow) {
             if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
                 // Claim the buy slot; if false, another message already handled or we're done
-                if (!claimBuySlot(tradeData.asset)) {
-                    continue;
-                }
-                try {
-                    // Mark as processing in storage so concurrent parts of app see this
                     storage.add(tradeData.asset, {
                         orderID: "",
                         asset: tradeData.asset,
@@ -360,13 +195,9 @@ async function handleTradeMessage(message: Message): Promise<void> {
                         conditionId: tradeData.conditionId
                     });
                     await executeBuyLogic(tradeData);
-                } finally {
-                    releaseBuySlot(tradeData.asset);
-                }
             }
         } 
     }
-}
 
 /**
  * WebSocket event handlers
@@ -397,10 +228,8 @@ const onConnect = (client: RealTimeDataClient): void => {
 async function main(): Promise<void> {
     await configureLogging();
     appLogger.info("Starting Polymarket Realtime Trading Bot...");
-    appLogger.info("Trading Rules: Buy > {buyThreshold}, Sell < {sellThreshold} after minute {stopLossMinute}", {
+    appLogger.info("Trading Rules: Buy > {buyThreshold}", {
         buyThreshold: TRADING_RULES.BUY_PRICE_THRESHOLD,
-        sellThreshold: TRADING_RULES.SELL_PRICE_THRESHOLD,
-        stopLossMinute: TRADING_RULES.STOP_LOSS_MINUTES
     });
     new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
 }

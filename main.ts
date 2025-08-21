@@ -43,8 +43,8 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
         if (processedConditionIds.has(tradeData.conditionId)) {
             // Only log the first time we see this conditionId
             if (!logger.get(`logged:${tradeData.conditionId}`)) {
-                appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", {
-                    conditionId: tradeData.conditionId,
+                appLogger.info("Order already placed for condition {title} — skipping post for asset {asset}", {
+                    title: tradeData.title,
                     asset: tradeData.asset
                 });
                 logger.add(`logged:${tradeData.conditionId}`, true);
@@ -83,10 +83,10 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 status: order.status,
                 conditionId: tradeData.conditionId
             });
-            appLogger.info("Buy order placed for {title} at price {price} asset {asset}, conditionId {conditionId}", {
+            appLogger.info("Buy order placed for {title} at price {price} asset {outcome}, conditionId {conditionId}", {
                 title: tradeData.title,
                 price: priceHandler(tradeData.price),
-                asset: tradeData.asset,
+                outcome: tradeData.outcome,
                 conditionId: tradeData.conditionId
             });
             return true;
@@ -163,8 +163,9 @@ function simulateBuyOrder(tradeData: TradeData): void {
         status: "filled",
         conditionId: tradeData.conditionId
     });
-    appLogger.info("Simulated buy order placed for {title} at price {price} asset {outcome}", {
+    appLogger.info("Simulated buy order placed for {title} at price {price} asset {outcome} conditionId {conditionId}", {
         title: tradeData.title,
+        conditionId: tradeData.conditionId,
         price: tradeData.price,
         outcome: tradeData.outcome,
     });

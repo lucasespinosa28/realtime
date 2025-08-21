@@ -1,7 +1,7 @@
 import { instructions } from "./config";
 import { shouldProcessMessage } from "./lib/processing";
 import { DatabaseManager } from "./lib/storage/database";
-import { storage } from "./lib/storage/memory";
+import { logger, storage } from "./lib/storage/memory";
 import { getBook, postOrder, priceHandler } from "./lib/trading";
 import { RealTimeDataClient } from "./lib/websocket";
 import type { Message } from "./lib/websocket/model";
@@ -12,6 +12,8 @@ const database = new DatabaseManager("trades4.sqlite");
 const boughtAssets = new Set<string>();
 // Track which conditionIds we've already placed orders for
 const processedConditionIds = new Set<string>();
+// New: guard concurrent processing per conditionId
+const inFlightConditionIds = new Set<string>();
 
 // Constants for trading rules
 const TRADING_RULES = {
@@ -38,10 +40,14 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
     try {
         // Check if we already processed this condition
         if (processedConditionIds.has(tradeData.conditionId)) {
-            appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", { 
-                conditionId: tradeData.conditionId, 
-                asset: tradeData.asset 
-            });
+            // Only log the first time we see this conditionId
+            if (!logger.get(`logged:${tradeData.conditionId}`)) {
+                appLogger.info("Order already placed for condition {conditionId} — skipping post for asset {asset}", { 
+                    conditionId: tradeData.conditionId, 
+                    asset: tradeData.asset 
+                });
+                logger.add(`logged:${tradeData.conditionId}`, true);
+            }
             return true;
         }
 
@@ -185,19 +191,37 @@ async function handleTradeMessage(message: Message): Promise<void> {
             title: message.payload.title,
             transactionHash: message.payload.transactionHash
         });
-            if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
-                // Claim the buy slot; if false, another message already handled or we're done
-                    storage.add(tradeData.asset, {
-                        orderID: "",
-                        asset: tradeData.asset,
-                        outcome: tradeData.outcome,
-                        status: "processing",
-                        conditionId: tradeData.conditionId
-                    });
-                    await executeBuyLogic(tradeData);
+        if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
+            // Skip if already processed, claimed, or asset already bought
+            if (
+                processedConditionIds.has(tradeData.conditionId) ||
+                inFlightConditionIds.has(tradeData.conditionId) ||
+                boughtAssets.has(tradeData.asset)
+            ) {
+                continue;
             }
-        } 
-    }
+
+            // Claim this conditionId to prevent duplicate processing
+            inFlightConditionIds.add(tradeData.conditionId);
+
+            // Mark processing for visibility
+            storage.add(tradeData.asset, {
+                orderID: "",
+                asset: tradeData.asset,
+                outcome: tradeData.outcome,
+                status: "processing",
+                conditionId: tradeData.conditionId
+            });
+
+            try {
+                await executeBuyLogic(tradeData);
+            } finally {
+                // Always release the claim so future retries are possible if not processed
+                inFlightConditionIds.delete(tradeData.conditionId);
+            }
+        }
+    } 
+}
 
 /**
  * WebSocket event handlers

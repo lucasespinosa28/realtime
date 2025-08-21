@@ -10,6 +10,14 @@ const storage = {
     delete: (id: string) => reported.delete(id)
 }
 
+const logger = {
+    getAllIds: () => Array.from(reported.keys()),
+    hasId: (id: string) => reported.has(id),
+    add: (id: string, data: boolean) => reported.set(id, data),
+    get: (id: string): boolean => reported.get(id),
+    delete: (id: string) => reported.delete(id)
+}
+
 const hedgeMap = {
     getAllIds: () => Array.from(reported.keys()),
     hasId: (id: string) => reported.has(id),
@@ -21,4 +29,4 @@ const hedgeMap = {
 
 const handleId = (tag: string, id: string) => `${tag}${id}`;
 const eventsTokens: string[] = [];
-export { storage, handleId, eventsTokens, hedgeMap };
+export { storage,logger, handleId, eventsTokens, hedgeMap };

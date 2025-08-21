@@ -178,3 +178,4 @@ dist
 db.*
 data
 *.sqlite*
+*.csv

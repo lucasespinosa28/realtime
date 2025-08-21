@@ -163,11 +163,10 @@ function simulateBuyOrder(tradeData: TradeData): void {
         status: "filled",
         conditionId: tradeData.conditionId
     });
-    appLogger.info("Simulated buy order placed for {title} at price {price} asset {asset}, conditionId {conditionId}", {
+    appLogger.info("Simulated buy order placed for {title} at price {price} asset {outcome}", {
         title: tradeData.title,
         price: tradeData.price,
-        asset: tradeData.asset,
-        conditionId: tradeData.conditionId
+        outcome: tradeData.outcome,
     });
 }
 

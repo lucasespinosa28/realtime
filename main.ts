@@ -23,7 +23,7 @@ const TRADING_RULES = {
 } as const;
 
 // Types for better clarity
-interface TradeData {
+export interface TradeData {
     conditionId: string;
     asset: string;
     title: string;
@@ -72,7 +72,6 @@ async function checkOrderStatus(conditionId: string, asset: string, outcome: str
         });
     }
 }
-
 /**
  * Places a buy order for a given asset
  */
@@ -97,7 +96,7 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         }
 
-        const calculatedPrice = priceHandler(tradeData.price);
+        const calculatedPrice = priceHandler(tradeData.price,tradeData);
         appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
@@ -124,7 +123,7 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             });
             appLogger.info("Buy order placed for {title} at price {price} asset {outcome}, conditionId {conditionId}", {
                 title: tradeData.title,
-                price: priceHandler(tradeData.price),
+                price: priceHandler(tradeData.price, tradeData),
                 outcome: tradeData.outcome,
                 conditionId: tradeData.conditionId
             });
@@ -214,7 +213,7 @@ function simulateBuyOrder(tradeData: TradeData): void {
  * Main message handler for trade events
  */
 async function handleTradeMessage(message: Message): Promise<void> {
-     const currentMinutes = new Date().getMinutes();
+    const currentMinutes = new Date().getMinutes();
     for (const instruction of instructions) {
         if (!shouldProcessMessage(message, instruction.slug)) {
             continue;

@@ -1,8 +1,9 @@
+import type { TradeData } from "../../main";
 import { polymarketAPILogger } from "../../utils/logger";
 
 
 
-const priceHandler = (price: number): number => {
+const priceHandler = (price: number, tradeData: TradeData): number => {
   const fixedPrice = Number(price.toFixed(2));
   if (fixedPrice !== price) {
     price = fixedPrice;
@@ -23,6 +24,11 @@ const priceHandler = (price: number): number => {
 
   if (minutes <= 50) {
     price = 0.80;
+    if (tradeData.title.includes("XRP")) {
+      polymarketAPILogger.info("XRP detected, setting price to 0.50");
+      price = 0.50;
+    }
+
     polymarketAPILogger.info("Time has {minutes} minutes (≤50), setting price to 0.80", { minutes });
   }
   return price;

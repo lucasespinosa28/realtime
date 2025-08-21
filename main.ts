@@ -96,7 +96,7 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         }
 
-        const calculatedPrice = priceHandler(tradeData.price,tradeData);
+        const calculatedPrice = priceHandler(tradeData);
         appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
@@ -123,7 +123,7 @@ async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             });
             appLogger.info("Buy order placed for {title} at price {price} asset {outcome}, conditionId {conditionId}", {
                 title: tradeData.title,
-                price: priceHandler(tradeData.price, tradeData),
+                price: priceHandler(tradeData),
                 outcome: tradeData.outcome,
                 conditionId: tradeData.conditionId
             });

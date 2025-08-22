@@ -4,15 +4,16 @@ import Database from "bun:sqlite";
 import type { Instructions } from "../../config/model";
 import { dbLogger } from "../../utils/logger";
 import type { Market, TradeOrder } from "./model";
+import { formatTitle } from "../../utils/parse";
 
 const reported = new Map();
 
 const logger = {
-    getAllIds: () => Array.from(reported.keys()),
-    hasId: (id: string) => reported.has(id),
-    add: (id: string, data: boolean) => reported.set(id, data),
-    get: (id: string): boolean => reported.get(id),
-    delete: (id: string) => reported.delete(id)
+  getAllIds: () => Array.from(reported.keys()),
+  hasId: (id: string) => reported.has(id),
+  add: (id: string, data: boolean) => reported.set(id, data),
+  get: (id: string): boolean => reported.get(id),
+  delete: (id: string) => reported.delete(id)
 }
 
 
@@ -55,23 +56,19 @@ class DatabaseMemoryManager {
     dbLogger.info("Database initialized with instructions and trade_orders");
   }
 
-  insertInstruction(instruction: Instructions[]): { success: boolean; } {
+  iinsertInstruction(instruction: Instructions[]): { success: boolean; } {
     try {
-      instruction.forEach(instr => {
-        const stmt = this.db.prepare(`SELECT id FROM instructions WHERE title = ?`);
-        const exist = stmt.get(instr.title);
-
-        if (exist) {
-          dbLogger.info(`Instruction with title "${instr.title}" already exists`);
-        }
-      });
-
       const insert = this.db.prepare(
         `INSERT INTO instructions (title, minutes, price, size) VALUES ($title, $minutes, $price, $size)`
       );
 
       instruction.forEach(instr => {
-        insert.run(instr.title, instr.minutes, instr.price, instr.size);
+        insert.run({
+          title: formatTitle(instr.title), // normalize here!
+          minutes: instr.minutes,
+          price: instr.price,
+          size: instr.size
+        });
       });
 
       return { success: true };
@@ -82,7 +79,7 @@ class DatabaseMemoryManager {
   }
 
   getInstructionByTitle(title: string): Instructions | null {
-    const stmt = this.db.prepare(`SELECT * FROM instructions WHERE title = ?`);
+    const stmt = this.db.prepare(`SELECT * FROM instructions WHERE LOWER(title) = LOWER(?)`);
     return stmt.get(title) as Instructions | null;
   }
 
@@ -131,7 +128,7 @@ class DatabaseMemoryManager {
       status: row.status,
       tradeData: {
         conditionId: row.conditionId,
-        asset: row.asset, 
+        asset: row.asset,
         title: row.title,
         price: row.price,
         timestamp: row.timestamp

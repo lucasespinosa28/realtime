@@ -63,8 +63,12 @@ class DatabaseMemoryManager {
       );
 
       instructions.forEach(instr => {
+        // Debug what formatTitle is returning
+        const formattedTitle = formatTitle(instr.title);
+        console.log(`Original: "${instr.title}" -> Formatted: "${formattedTitle}"`);
+
         insert.run({
-          title: formatTitle(instr.title), // normalize here!
+          title: formattedTitle || instr.title, // fallback to original if null
           minutes: instr.minutes,
           price: instr.price,
           size: instr.size
@@ -77,27 +81,26 @@ class DatabaseMemoryManager {
       return { success: false };
     }
   }
-
-getInstructionByTitle(title: string): Instructions | null {
+  getInstructionByTitle(title: string): Instructions | null {
     // First, let's see what we're looking for and what we have
     const allStmt = this.db.prepare(`SELECT title FROM instructions`);
     const allTitles = allStmt.all();
-    
+
     dbLogger.info(`\n=== DEBUG DATABASE LOOKUP ===`);
     dbLogger.info(`Looking for: "${title}"`);
     dbLogger.info(`Available titles in database:`);
     allTitles.forEach((row: any, index: number) => {
-        dbLogger.info(`  ${index + 1}. "${row.title}"`);
+      dbLogger.info(`  ${index + 1}. "${row.title}"`);
     });
-    
+
     const stmt = this.db.prepare(`SELECT * FROM instructions WHERE LOWER(title) = LOWER(?)`);
     const result = stmt.get(title) as Instructions | null;
-    
+
     dbLogger.info(`Query result: ${result ? 'FOUND' : 'NOT FOUND'}`);
     dbLogger.info(`===============================\n`);
-    
+
     return result;
-}
+  }
 
 
   createTradeOrder(order: TradeOrder): { success: boolean; } {

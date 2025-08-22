@@ -167,18 +167,22 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
             storage.delete(tradeData.asset);
             return;
         }
+        const isBitcoinEvent = (tradeData.title?.toLowerCase().includes("bitcoin") ?? false);
         // Check if bid price meets minimum requirement
-        const highestBidPrice = parseFloat(book.bids[book.bids.length - 1].price);
-        if (highestBidPrice < TRADING_RULES.MIN_BID_PRICE) {
-            appLogger.info("Bid price {bidPrice} too low (< {minBid}) for {title}", {
-                bidPrice: highestBidPrice,
-                minBid: TRADING_RULES.MIN_BID_PRICE,
-                title: tradeData.title
-            });
-            // Remove processing status since we can't proceed
-            storage.delete(tradeData.asset);
-            return;
+        if (!isBitcoinEvent) {
+            const highestBidPrice = parseFloat(book.bids[book.bids.length - 1].price);
+            if (highestBidPrice < TRADING_RULES.MIN_BID_PRICE) {
+                appLogger.info("Bid price {bidPrice} too low (< {minBid}) for {title}", {
+                    bidPrice: highestBidPrice,
+                    minBid: TRADING_RULES.MIN_BID_PRICE,
+                    title: tradeData.title
+                });
+                // Remove processing status since we can't proceed
+                storage.delete(tradeData.asset);
+                return;
+            }
         }
+
         // Asset is already marked as "processing" from the caller
         await placeBuyOrder(tradeData);
     } catch (error) {

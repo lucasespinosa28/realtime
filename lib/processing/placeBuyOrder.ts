@@ -2,9 +2,9 @@ import { boughtAssets, processedConditionIds } from "./state";
 import { postOrder } from "../trading";
 import { memoryDatabase } from "../../main";
 import { appLogger } from "../../utils/logger";
-import { formatTitle } from "../../utils/parse";
 import type { TradeData } from "../storage/model";
 import { logger } from "../storage";
+import { extractBaseTitle } from "./handleMessage";
 
 /**
  * Places a buy order for a given asset
@@ -35,7 +35,10 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in memory for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-        const price = memoryDatabase.getInstructionByTitle(formatTitle(tradeData.title))?.price || 0.8;
+        const baseTitle = extractBaseTitle(tradeData.title); // You need to import this function
+        const price = memoryDatabase.getInstructionByTitle(baseTitle)?.price || 0.8;
+
+       
 
         appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,

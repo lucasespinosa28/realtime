@@ -60,7 +60,7 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
 
 }
 
-function extractBaseTitle(fullTitle: string): string {
+export function extractBaseTitle(fullTitle: string): string {
     // Remove timestamp patterns like "- august 22, 5pm et", "- september 15, 2am et", etc.
     // This regex matches: - [month] [day], [time][am/pm] et
     const cleanTitle = fullTitle.replace(/\s*-\s*[a-zA-Z]+\s+\d+,\s*\d+[ap]m\s+et\s*$/i, '');
@@ -70,9 +70,9 @@ function extractBaseTitle(fullTitle: string): string {
 
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
-    // Use the extracted base title for lookup
+    // Use the extracted base title for lookup - this is already formatted by extractBaseTitle
     const baseTitle = extractBaseTitle(tradeData.title);
-    const instruction = memoryDatabase.getInstructionByTitle(baseTitle);
+    const instruction = memoryDatabase.getInstructionByTitle(baseTitle); // Don't format again!
 
     if (!instruction) {
         appLogger.warn("No instruction found for title: {title} (base: {baseTitle}) - skipping buy order", {

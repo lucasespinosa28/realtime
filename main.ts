@@ -211,18 +211,6 @@ async function handleTradeMessage(message: Message): Promise<void> {
             size: instruction.size
         };
 
-        // Move jump check after tradeData init so simulation can run
-        if (message.payload.eventSlug.includes(instruction.jump)) {
-            if (!logger.get(`logged:${message.payload.eventSlug}`)) {
-                appLogger.info("Order jumped {jump}", {
-                    jump: message.payload.eventSlug
-                });
-                logger.add(`logged:${message.payload.eventSlug}`, true);
-            }
-            return;
-        }
-
-        // setOppositeSide(tradeData);
         // Record all trades in database
         database.setTrade({
             asset: tradeData.asset,

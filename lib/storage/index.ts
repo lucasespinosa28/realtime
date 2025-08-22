@@ -56,13 +56,13 @@ class DatabaseMemoryManager {
     dbLogger.info("Database initialized with instructions and trade_orders");
   }
 
-  insertInstruction(instruction: Instructions[]): { success: boolean; } {
+  insertInstruction(instructions: Instructions[]): { success: boolean; } {
     try {
       const insert = this.db.prepare(
         `INSERT INTO instructions (title, minutes, price, size) VALUES ($title, $minutes, $price, $size)`
       );
 
-      instruction.forEach(instr => {
+      instructions.forEach(instr => {
         insert.run({
           title: formatTitle(instr.title), // normalize here!
           minutes: instr.minutes,

@@ -84,12 +84,26 @@ export interface Message {
 
 export interface OrderBook {
     connection_id: string;
-    payload: Payload[] | Payload;
+    payload: {
+        asks: Book[];
+        asset_id: string;
+        bids: Book[];
+        hash: string;
+        market: string;
+        min_order_size: string;
+        neg_risk: boolean;
+        tick_size: string;
+        timestamp: string;
+    }
     timestamp: number;
     topic: string;
     type: string;
 }
 
+interface Book {
+    price:number;
+    size:number;
+}
 
 export interface Payload {
     market: string;

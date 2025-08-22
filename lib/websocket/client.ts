@@ -1,4 +1,4 @@
-import type { SubscriptionMessage, Message, OrderBook } from "./model";
+import type { SubscriptionMessage, Message } from "./model";
 import { ConnectionStatus } from "./model";
 import { websocketLogger } from "../../utils/logger";
 
@@ -62,7 +62,7 @@ export class RealTimeDataClient {
     private readonly onConnect?: (client: RealTimeDataClient) => void;
 
     /** Callback function executed when a custom message is received */
-    private readonly onCustomMessage?: (client: RealTimeDataClient, message: Message | OrderBook) => void;
+    private readonly onCustomMessage?: (client: RealTimeDataClient, message: Message) => void;
 
     /** Callback function executed on a connection status update */
     private readonly onStatusChange?: (status: ConnectionStatus) => void;
@@ -87,7 +87,7 @@ export class RealTimeDataClient {
         this.host = args!.host || DEFAULT_HOST;
         this.pingInterval = args!.pingInterval || DEFAULT_PING_INTERVAL;
         this.autoReconnect = args!.autoReconnect || true;
-        this.onCustomMessage = args!.onMessage;
+    this.onCustomMessage = args!.onMessage;
         this.onConnect = args!.onConnect;
         this.onStatusChange = args!.onStatusChange;
     }
@@ -198,15 +198,16 @@ export class RealTimeDataClient {
     private onMessage = (event: MessageEvent): void => {
         try {
             if (typeof event.data === "string" && event.data.length > 0) {
-                if (this.onCustomMessage && event.data.includes("payload")) {
+                if (this.onCustomMessage) {
                     const message = JSON.parse(event.data);
-                    this.onCustomMessage(this, message as Message);
+                    if (message && typeof message === 'object' && 'payload' in message) {
+                        this.onCustomMessage(this, message as Message);
+                    }
                 }
-                // Remove excessive logging to save memory
             }
         } catch (error) {
-            websocketLogger.error("Error parsing message: {error}", { 
-                error: error instanceof Error ? error.message : String(error) 
+            websocketLogger.error("Error parsing message: {error}", {
+                error: error instanceof Error ? error.message : String(error)
             });
         }
     };

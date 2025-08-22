@@ -18,7 +18,7 @@ const inFlightConditionIds = new Set<string>();
 
 // Constants for trading rules
 const TRADING_RULES = {
-    START_TIME: 0,
+    START_TIME: 50,
     BUY_PRICE_THRESHOLD: 0.90,
     MIN_BID_PRICE: 0.89,
 } as const;

@@ -15,8 +15,8 @@ export function parseTitleTime(title: string): { month: string, day: number, hou
  * Returns: { month: string, day: number, hour: number, ampm: string } | null
  */
 export function parseSlugTime(slug: string): { month: string, day: number, hour: number, ampm: string } | null {
-  // Example match: "august-21-2am-et"
-  const match = slug.match(/([a-z]+)-(\d+)-(\d+)(am|pm)-et/i);
+  // Example match: "august-21-2am-et" or "august-21-9am-et"
+  const match = slug.match(/([a-z]+)-(\d+)-(\d{1,2})(am|pm)-et/i);
   if (!match) return null;
   return {
     month: match[1][0].toUpperCase() + match[1].slice(1), // Capitalize
@@ -73,8 +73,9 @@ export function isTimeMatch(
 ): boolean {
   const timeParts = parser(str);
   if (!timeParts) return false;
-
+  // console.log({ timeParts });
   const etParts = getCurrentETParts();
+  // console.log({ etParts });
   return (
     timeParts.month.toLowerCase() === etParts.month.toLowerCase() &&
     timeParts.day === etParts.day &&

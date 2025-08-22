@@ -38,6 +38,7 @@ export const inFlightConditionIds = new Set<string>();
 let markets: Market[] = [];
 let tokens: Token[] = [];
 let titles = new Map<string, string>();
+let oppositeAsset = new Map<string, string>();
 let client: RealTimeDataClient | null = null;
 
 function loadMarketData(): void {
@@ -50,18 +51,37 @@ function loadMarketData(): void {
     })));
 
     titles = new Map<string, string>();
+    oppositeAsset = new Map<string, string>();
+    
     for (const token of tokens) {
         titles.set(token.token_id, token.title);
     }
 
-    appLogger.info("Market data loaded: {marketCount} markets, {tokenCount} tokens", {
+    // Build opposite asset map: each asset maps to its counterpart
+    for (const market of markets) {
+        if (market.tokens.length === 2) {
+            const [asset1, asset2] = market.tokens;
+            oppositeAsset.set(asset1.token_id, asset2.token_id);
+            oppositeAsset.set(asset2.token_id, asset1.token_id);
+        }
+    }
+
+    appLogger.info("Market data loaded: {marketCount} markets, {tokenCount} tokens, {oppositeCount} opposite pairs", {
         marketCount: markets.length,
-        tokenCount: tokens.length
+        tokenCount: tokens.length,
+        oppositeCount: oppositeAsset.size / 2
     });
 }
 
 function tokensId(): string {
     return tokens.map(token => `"${token.token_id}"`).join(",");
+}
+
+/**
+ * Get the opposite asset for a given asset ID
+ */
+export function getOppositeAsset(assetId: string): string | undefined {
+    return oppositeAsset.get(assetId);
 }
 
 const lastBuy = new Map();
@@ -84,7 +104,7 @@ const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
             lastBuy.set(tradeData.asset, true);
             const order = await postOrder(
                 tradeData.asset,
-                0.99,
+                Number(lastAsk.price),
                 5,
             );
             if (order.success) {
@@ -175,7 +195,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         withinBuyWindow: TRADING_RULES.START_TIME < currentMinutes
     });
 
-    await lastBuyAsk(asks, tradeData)
+    // await lastBuyAsk(asks, tradeData)
     // 1. Always check if we have an existing order and update its status
     if (storageOrder.hasId(tradeData.asset)) {
         appLogger.debug("Found existing order for asset {asset} - checking status", { asset: tradeData.asset });

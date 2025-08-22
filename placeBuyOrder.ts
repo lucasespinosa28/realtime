@@ -1,12 +1,13 @@
 import { logger, storageOrder } from "./lib/storage/memory";
 import { postOrder } from "./lib/trading";
-import { boughtAssets, processedConditionIds, type TradeData } from "./main";
+import { boughtAssets, getOppositeAsset, processedConditionIds, type TradeData } from "./main";
 import { appLogger } from "./utils/logger";
 
 /**
  * Places a buy order for a given asset
  */
 export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
+    const currentMinutes = new Date().getMinutes();
     try {
         appLogger.debug("Starting placeBuyOrder for {title} (asset: {asset}, conditionId: {conditionId})", {
             title: tradeData.title,
@@ -33,8 +34,8 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         }
 
-        const title = tradeData.title.toLowerCase();
         let price = 0.8;
+        const title = tradeData.title.toLowerCase();
         switch (true) {
             case title.includes("xrp"):
                 price = 0.5;
@@ -51,6 +52,14 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             default:
                 price = 0.8;
         }
+        // If currentMinutes is less than 30, set price to 0.5 (overrides switch)
+        if (currentMinutes <= 30) {
+            appLogger.debug("Current minutes {currentMinutes} is less than or equal to 30, setting price to 0.5", {
+                currentMinutes
+            });
+            price = 0.5;
+        }
+
         appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
@@ -61,13 +70,18 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             asset: tradeData.asset,
             price: price
         });
-
+        const oppositeAsset = getOppositeAsset(tradeData.asset);
+        const asset = tradeData.title.toLowerCase().includes("bitcoin") ? oppositeAsset : tradeData.asset;
+        if (!asset) {
+            appLogger.error("Asset is undefined for tradeData: {tradeData}", { tradeData });
+            return false;
+        }
         const order = await postOrder(
-            tradeData.asset,
+            asset,
             price,
             5,
         );
-        
+
         if (order.success) {
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);
@@ -96,8 +110,8 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 status: "failed",
                 conditionId: tradeData.conditionId
             });
-            appLogger.warn("❌ Buy order failed for {title} asset {asset}: success={success}", { 
-                title: tradeData.title, 
+            appLogger.warn("❌ Buy order failed for {title} asset {asset}: success={success}", {
+                title: tradeData.title,
                 asset: tradeData.asset,
                 success: order.success
             });

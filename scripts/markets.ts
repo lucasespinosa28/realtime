@@ -1,4 +1,4 @@
-import { DatabaseManager } from "../lib/storage/database";
+import { DatabaseManager } from "../lib/storage";
 import { polymarket } from "../lib/trading";
 import type { Market } from "../lib/trading/model";
 

@@ -1,4 +1,4 @@
-import { DatabaseManager } from "../lib/storage/database";
+import { DatabaseManager } from "../lib/storage";
 import type { Market } from "../lib/trading/model";
 import { isTimeMatchLegcy } from "../utils/time";
 

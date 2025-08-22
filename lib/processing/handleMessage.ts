@@ -20,11 +20,7 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
     const asks = message.payload.asks;
     const bids = message.payload.bids;
 
-    appLogger.debug("Received orderbook for asset {assetId}: {askCount} asks, {bidCount} bids", {
-        assetId: message.payload.asset_id,
-        askCount: asks?.length || 0,
-        bidCount: bids?.length || 0
-    });
+
 
     const title = titles.get(message.payload.asset_id);
     if (!title) {
@@ -46,6 +42,12 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
         timestamp: message.timestamp,
     };
 
+    appLogger.debug("Received orderbook for asset {title} {assetId}: {askCount} asks, {bidCount} bids", {
+        title: tradeData.title,
+        assetId: message.payload.asset_id,
+        askCount: asks?.length || 0,
+        bidCount: bids?.length || 0
+    });
 
     if (memoryDatabase.existTradeOrder(tradeData.asset)) {
         appLogger.debug("Found existing order for asset {title} {asset} - checking status", { asset: tradeData.asset, title: tradeData.title });
@@ -61,13 +63,13 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
     const instruction = memoryDatabase.getInstructionByTitle(tradeData.title);
-    if(!instruction){
+    if (!instruction) {
         appLogger.warn("No instruction found for title: {title} - skipping buy order", { title: tradeData.title });
         return;
     }
     const withinBuyWindow = instruction.minutes < currentMinutes;
 
-     appLogger.debug("Processing trade data for {title}: price={price}, conditionId={conditionId}, withinBuyWindow={withinBuyWindow}", {
+    appLogger.debug("Processing trade data for {title}: price={price}, conditionId={conditionId}, withinBuyWindow={withinBuyWindow}", {
         title: tradeData.title,
         price: tradeData.price,
         conditionId: tradeData.conditionId,

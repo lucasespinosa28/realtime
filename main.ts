@@ -143,7 +143,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         timestamp: orderBook.timestamp,
     };
 
-    console.log({ tradeData })
     await lastBuyAsk(asks, tradeData)
     // 1. Always check if we have an existing order and update its status
     if (storageOrder.hasId(tradeData.asset)) {

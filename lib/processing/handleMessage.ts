@@ -71,6 +71,16 @@ async function maybePlaceBuyOrder(tradeData: TradeData) {
         });
         return;
     }
+
+    // Prevent posting if currentMinutes > 50 and instruction.penny === 0
+    if (currentMinutes > 50 && instruction.penny === 0) {
+        appLogger.debug("Not allowed to post for {title}: currentMinutes={currentMinutes} > 50 and penny=0", {
+            title: tradeData.title,
+            currentMinutes
+        });
+        return;
+    }
+
     const withinBuyWindow = instruction.minutes < currentMinutes;
 
     appLogger.debug("Processing trade data for {title}: price={price}, conditionId={conditionId}, withinBuyWindow={withinBuyWindow}", {

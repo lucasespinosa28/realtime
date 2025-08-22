@@ -58,16 +58,23 @@ export async function checkOrderStatus(tradeData: TradeData): Promise<void> {
                 conditionId: tradeData.conditionId
             });
 
-            const sellOrderResult = await sellOrder(
-                order.asset_id,
-                0.90,
-                5,
-            );
+            // Only place sell order if title includes "bitcoin" or minutes < 30
+            const currentMinutes = new Date().getMinutes();
+            if (
+                tradeData.title.toLowerCase().includes("bitcoin") ||
+                currentMinutes < 45
+            ) {
+                const sellOrderResult = await sellOrder(
+                    order.asset_id,
+                    0.90,
+                    5,
+                );
 
-            if (sellOrderResult.success) {
-                appLogger.info("Sell order placed for asset {title} at price 0.90 with size 5", {
-                    title: tradeData.title
-                });
+                if (sellOrderResult.success) {
+                    appLogger.info("Sell order placed for asset {title} at price 0.90 with size 5", {
+                        title: tradeData.title
+                    });
+                }
             }
         } else if (order.status !== storedOrder.status) {
             // Log status changes

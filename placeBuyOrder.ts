@@ -71,7 +71,20 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             price: price
         });
         const oppositeAsset = getOppositeAsset(tradeData.asset);
-        const asset = tradeData.title.toLowerCase().includes("bitcoin") ? oppositeAsset : tradeData.asset;
+        let asset = tradeData.asset;
+        if (tradeData.title.toLowerCase().includes("bitcoin")) {
+            if (currentMinutes > 50) {
+                appLogger.info("Current minutes {currentMinutes} is greater than 50, skipping postOrder for bitcoin with opposite asset", {
+                    currentMinutes
+                });
+                return false;
+            }
+            if (!oppositeAsset) {
+                appLogger.error("Opposite asset is undefined for tradeData: {tradeData}", { tradeData });
+                return false;
+            }
+            asset = oppositeAsset;
+        }
         if (!asset) {
             appLogger.error("Asset is undefined for tradeData: {tradeData}", { tradeData });
             return false;
@@ -81,7 +94,6 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             price,
             5,
         );
-
         if (order.success) {
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);

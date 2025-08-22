@@ -5,3 +5,10 @@ export interface Order {
     status: string;
     conditionId: string;
 }
+
+export interface TradeOrder {
+    asset: string;
+    orderID: string;
+    status: string;
+    conditionId: string;
+}

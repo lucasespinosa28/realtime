@@ -1,297 +1,200 @@
-import { instructions } from "./config";
-import { shouldProcessMessage } from "./lib/processing";
-import { DatabaseManager } from "./lib/storage/database";
-import { logger, storage } from "./lib/storage/memory";
-import { getBook, polymarket, postOrder } from "./lib/trading";
-import priceHandler, { priceSimulatedHandler } from "./lib/trading/priceHandler";
-import { RealTimeDataClient } from "./lib/websocket";
-import type { Message } from "./lib/websocket/model";
+import { checkOrderStatus } from "./checkOrderStatus";
+import { storageOrder } from "./lib/storage/memory";
+import { postOrder } from "./lib/trading";
+import type { Market, MarketToken } from "./lib/trading/model";
+import { RealTimeDataClient, type Message } from "./lib/websocket";
+import type { Book, OrderBook } from "./lib/websocket/model";
+import { placeBuyOrder } from "./placeBuyOrder";
+import { crypto1hMarkets } from "./scripts/filterMarkerts";
 import { appLogger, configureLogging } from "./utils/logger";
 
-const database = new DatabaseManager("trades4.sqlite");
-// In-memory set of assets we've already bought (authoritative copy in DB)
-const boughtAssets = new Set<string>();
-// Track which conditionIds we've already placed orders for
-const processedConditionIds = new Set<string>();
-// New: guard concurrent processing per conditionId
-const inFlightConditionIds = new Set<string>();
 
-// Constants for trading rules
-const TRADING_RULES = {
-    START_TIME: 50,
-    BUY_PRICE_THRESHOLD: 0.90,
-    MIN_BID_PRICE: 0.89,
-} as const;
-
-// Types for better clarity
 export interface TradeData {
     conditionId: string;
     asset: string;
     title: string;
-    outcome: string;
     price: number;
     timestamp: number;
-    side: string;
-    size: number;
 }
 
-
-/**
- * Checks if a placed buy order has been matched
- */
-async function checkOrderStatus(conditionId: string, asset: string, outcome: string, tradeData: TradeData): Promise<void> {
-    if (!storage.hasId(asset)) return; // nothing to check
-    const storedOrder = storage.get(asset);
-    // Skip if already matched or outcome doesn't match
-    if (storedOrder.status === "MATCHED" || storedOrder.outcome !== outcome) {
-        return;
-    }
-    const orderId = storedOrder.orderID;
-    if (!orderId) {
-        return;
-    }
-    try {
-        const order = await polymarket.getOrder(orderId);
-        if (order.status === "MATCHED") {
-            appLogger.info("Buy order matched for condition {conditionId} outcome {outcome}", {
-                conditionId: tradeData.title,
-                outcome
-            });
-            // Update storage with matched status
-            storage.add(asset, {
-                orderID: orderId,
-                asset: asset,
-                outcome: outcome,
-                status: "MATCHED",
-                conditionId: conditionId
-            });
-        }
-    } catch (error) {
-        appLogger.error("Error checking order status for {conditionId}: {error}", {
-            conditionId: tradeData.title,
-            error: error instanceof Error ? error.message : String(error)
-        });
-    }
+interface Token extends MarketToken {
+    title: string;
+    // Add any additional properties or methods specific to Token here
 }
-/**
- * Places a buy order for a given asset
- */
-async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
-    try {
-        // Check if we already processed this condition
-        if (processedConditionIds.has(tradeData.conditionId)) {
-            // Only log the first time we see this conditionId
-            if (!logger.get(`logged:${tradeData.conditionId}`)) {
-                appLogger.info("Order already placed for condition {title} — skipping post for asset {asset}", {
+// Constants for trading rules
+const TRADING_RULES = {
+    START_TIME: 0,
+    BUY_PRICE_THRESHOLD: 0.90,
+} as const;
+
+// In-memory set of assets we've already bought (authoritative copy in DB)
+export const boughtAssets = new Set<string>();
+// Track which conditionIds we've already placed orders for
+export const processedConditionIds = new Set<string>();
+// New: guard concurrent processing per conditionId
+export const inFlightConditionIds = new Set<string>();
+
+// Make these variables mutable for reloading
+let markets: Market[] = [];
+let tokens: Token[] = [];
+let titles = new Map<string, string>();
+let client: RealTimeDataClient | null = null;
+
+function loadMarketData(): void {
+    appLogger.info("Loading market data...");
+
+    markets = crypto1hMarkets();
+    tokens = markets.flatMap(market => market.tokens.map(token => ({
+        ...token,
+        title: market.question.toLowerCase()
+    })));
+
+    titles = new Map<string, string>();
+    for (const token of tokens) {
+        titles.set(token.token_id, token.title);
+    }
+
+    appLogger.info("Market data loaded: {marketCount} markets, {tokenCount} tokens", {
+        marketCount: markets.length,
+        tokenCount: tokens.length
+    });
+}
+
+function tokensId(): string {
+    return tokens.map(token => `"${token.token_id}"`).join(",");
+}
+
+const lastBuy = new Map();
+const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
+    if (!Array.isArray(asks) || asks.length === 0) return;
+    const lastAsk = asks.reverse()[0]
+    if (!lastBuy.get(tradeData.asset)) {
+        if (Number(lastAsk.price) === 0.99) {
+            console.log("Last Buy Ask:", lastAsk);
+            lastBuy.set(tradeData.asset, true);
+            const order = await postOrder(
+                tradeData.asset,
+                0.99,
+                5,
+            );
+            if (order.success) {
+                // Track in memory to avoid future DB checks
+                boughtAssets.add(tradeData.asset);
+                // Mark this conditionId as processed
+                processedConditionIds.add(tradeData.conditionId);
+                // Update storageOrder with order details
+                storageOrder.add(tradeData.asset, {
+                    orderID: order.orderID,
+                    asset: tradeData.asset,
+                    status: order.status,
+                    conditionId: tradeData.conditionId
+                });
+                appLogger.info("Buy order placed for {title} at price {price}, conditionId {conditionId}", {
                     title: tradeData.title,
-                    asset: tradeData.asset
+                    price: 0.99,
+                    conditionId: tradeData.conditionId
                 });
-                logger.add(`logged:${tradeData.conditionId}`, true);
+            } else {
+                // Mark as failed
+                storageOrder.add(tradeData.asset, {
+                    orderID: "",
+                    asset: tradeData.asset,
+                    status: "failed",
+                    conditionId: tradeData.conditionId
+                });
+                appLogger.warn("Buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
             }
-            return true;
         }
-
-        // Double-check idempotency: if memory already contains a buy for this asset, skip
-        if (boughtAssets.has(tradeData.asset)) {
-            appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
-            return true;
-        }
-
-
-
-        const calculatedPrice = priceSimulatedHandler(tradeData);
-        appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
-            title: tradeData.title,
-            originalPrice: tradeData.price,
-            calculatedPrice: calculatedPrice
-        });
-
-        const order = await postOrder(
-            tradeData.asset,
-            calculatedPrice,
-            tradeData.size,
-        );
-        if (order.success) {
-            // Track in memory to avoid future DB checks
-            boughtAssets.add(tradeData.asset);
-            // Mark this conditionId as processed
-            processedConditionIds.add(tradeData.conditionId);
-            // Update storage with order details
-            storage.add(tradeData.asset, {
-                orderID: order.orderID,
-                asset: tradeData.asset,
-                outcome: tradeData.outcome,
-                status: order.status,
-                conditionId: tradeData.conditionId
-            });
-            appLogger.info("Buy order placed for {title} at price {price} asset {outcome}, conditionId {conditionId}", {
-                title: tradeData.title,
-                price: priceHandler(tradeData),
-                outcome: tradeData.outcome,
-                conditionId: tradeData.conditionId
-            });
-            return true;
-        } else {
-            // Mark as failed
-            storage.add(tradeData.asset, {
-                orderID: "",
-                asset: tradeData.asset,
-                outcome: tradeData.outcome,
-                status: "failed",
-                conditionId: tradeData.conditionId
-            });
-            appLogger.warn("Buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
-            return false;
-        }
-    } catch (error) {
-        appLogger.error("Error placing buy order for {title}: {error}", {
-            title: tradeData.title,
-            error: error instanceof Error ? error.message : String(error)
-        });
-        // Clean up processing status on error to allow retry
-        storage.delete(tradeData.asset);
-        return false;
     }
 }
 
-/**
- * Executes buy logic when conditions are met
- */
-async function executeBuyLogic(tradeData: TradeData): Promise<void> {
-    try {
-        // Check order book for sufficient liquidity
-        const book = await getBook(tradeData.asset);
-        if (!book.asks.length || !book.bids.length) {
-            appLogger.warn("No liquidity available for {title}", { title: tradeData.title });
-            // Remove processing status since we can't proceed
-            storage.delete(tradeData.asset);
-            return;
-        }
-        const isBitcoinEvent = (tradeData.title?.toLowerCase().includes("bitcoin") ?? false);
-        // Check if bid price meets minimum requirement
-        if (!isBitcoinEvent) {
-            const highestBidPrice = parseFloat(book.bids[book.bids.length - 1].price);
-            if (highestBidPrice < TRADING_RULES.MIN_BID_PRICE) {
-                appLogger.info("Bid price {bidPrice} too low (< {minBid}) for {title}", {
-                    bidPrice: highestBidPrice,
-                    minBid: TRADING_RULES.MIN_BID_PRICE,
-                    title: tradeData.title
-                });
-                // Remove processing status since we can't proceed
-                storage.delete(tradeData.asset);
-                return;
-            }
-        }
-
-        // Asset is already marked as "processing" from the caller
-        await placeBuyOrder(tradeData);
-    } catch (error) {
-        appLogger.error("Error in buy logic for {title}: {error}", {
-            title: tradeData.title,
-            error: error instanceof Error ? error.message : String(error)
-        });
-        // Remove processing status on error
-        storage.delete(tradeData.asset);
-    }
-}
-/**
- * Main message handler for trade events
- */
-async function handleTradeMessage(message: Message): Promise<void> {
-    const currentMinutes = new Date().getMinutes();
-    for (const instruction of instructions) {
-        if (!shouldProcessMessage(message, instruction.slug)) {
-            continue;
-        }
-
-        const tradeData: TradeData = {
-            conditionId: message.payload.conditionId,
-            asset: message.payload.asset,
-            title: message.payload.title,
-            outcome: message.payload.outcome,
-            price: message.payload.price,
-            timestamp: message.payload.timestamp,
-            side: message.payload.side,
-            size: instruction.size
-        };
-
-        // Record all trades in database
-        database.setTrade({
-            asset: tradeData.asset,
-            conditionId: tradeData.conditionId,
-            outcome: tradeData.outcome,
-            price: tradeData.price,
-            size: message.payload.size,
-            side: tradeData.side,
-            timestamp: tradeData.timestamp,
-            bio: message.payload.bio,
-            eventSlug: message.payload.eventSlug,
-            icon: message.payload.icon,
-            name: message.payload.name,
-            outcomeIndex: message.payload.outcomeIndex,
-            profileImage: message.payload.profileImage,
-            proxyWallet: message.payload.proxyWallet,
-            pseudonym: message.payload.pseudonym,
-            slug: message.payload.slug,
-            title: message.payload.title,
-            transactionHash: message.payload.transactionHash
-        });
-        // 1. Always check if we have an existing order and update its status
-        if (storage.hasId(tradeData.asset)) {
-            const storedOrder = storage.get(tradeData.asset);
-            await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
-        }
-        const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
-        const isBitcoin = tradeData.title.toLowerCase().includes("bitcoin") || (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false);
-        if ((isBitcoin && tradeData.price === 0.05 && !withinBuyWindow) || (withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
-            // Skip if already processed, claimed, or asset already bought
-            if (
-                processedConditionIds.has(tradeData.conditionId) ||
-                inFlightConditionIds.has(tradeData.conditionId) ||
-                boughtAssets.has(tradeData.asset)
-            ) {
-                continue;
-            }
-
-            // Claim this conditionId to prevent duplicate processing
-            inFlightConditionIds.add(tradeData.conditionId);
-
-            // Mark processing for visibility
-            storage.add(tradeData.asset, {
-                orderID: "",
-                asset: tradeData.asset,
-                outcome: tradeData.outcome,
-                status: "processing",
-                conditionId: tradeData.conditionId
-            });
-
-            try {
-                await executeBuyLogic(tradeData);
-            } finally {
-                // Always release the claim so future retries are possible if not processed
-                inFlightConditionIds.delete(tradeData.conditionId);
-            }
-        }
-    }
+const lastBuyBid = (bids: Book[]) => {
+    if (!Array.isArray(bids) || bids.length === 0) return null;
+    return bids.reverse()[0]
 }
 
 /**
  * WebSocket event handlers
  */
 const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
-    await handleTradeMessage(message);
-};
+    const orderBook = message as unknown as OrderBook;
+    const currentMinutes = new Date().getMinutes();
+
+    lastBuy.set(orderBook.payload.asset_id, false);
+    const asks = orderBook.payload.asks;
+    const bids = orderBook.payload.bids;
+
+
+    const title = titles.get(orderBook.payload.asset_id);
+    if (!title) {
+        throw new Error(`Title not found for asset_id: ${orderBook.payload.asset_id}`);
+    }
+    const bidBook = lastBuyBid(bids);
+    if (!bidBook) {
+        // No bids available, skip processing this message
+        return;
+    }
+
+    const tradeData: TradeData = {
+        conditionId: orderBook.payload.market,
+        asset: orderBook.payload.asset_id,
+        title,
+        price: Number(bidBook.price),
+        timestamp: orderBook.timestamp,
+    };
+
+    console.log({ tradeData })
+    await lastBuyAsk(asks, tradeData)
+    // 1. Always check if we have an existing order and update its status
+    if (storageOrder.hasId(tradeData.asset)) {
+        await checkOrderStatus(tradeData);
+    }
+    const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
+    if ((withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
+        // Skip if already processed, claimed, or asset already bought
+        if (
+            processedConditionIds.has(tradeData.conditionId) ||
+            inFlightConditionIds.has(tradeData.conditionId) ||
+            boughtAssets.has(tradeData.asset)
+        ) {
+            return;
+        }
+
+
+        // Claim this conditionId to prevent duplicate processing
+        inFlightConditionIds.add(tradeData.conditionId);
+
+        // Mark processing for visibility
+        storageOrder.add(tradeData.asset, {
+            orderID: "",
+            asset: tradeData.asset,
+            status: "processing",
+            conditionId: tradeData.conditionId
+        });
+
+        try {
+            // Asset is already marked as "processing" from the caller
+            await placeBuyOrder(tradeData);
+        } finally {
+            // Always release the claim so future retries are possible if not processed
+            inFlightConditionIds.delete(tradeData.conditionId);
+        }
+    }
+}
+
 
 const onStatusChange = (status: string) => {
     appLogger.info("WebSocket status changed: {status}", { status });
 };
 
-const onConnect = (client: RealTimeDataClient): void => {
+const onConnect = (wsClient: RealTimeDataClient): void => {
+    client = wsClient; // Store reference for reconnection
     client.subscribe({
         subscriptions: [
             {
-                topic: "activity",
-                type: "trades",
+                topic: "clob_market",
+                type: "agg_orderbook",
+                filters: `[${tokensId()}]'`
             },
         ],
     });
@@ -299,17 +202,70 @@ const onConnect = (client: RealTimeDataClient): void => {
 };
 
 /**
+ * Reconnect WebSocket with fresh data
+ */
+async function reconnectWithFreshData(): Promise<void> {
+    appLogger.info("Reconnecting with fresh market data...");
+
+    // Disconnect current client if exists
+    if (client) {
+        client.disconnect();
+        client = null;
+    }
+
+    // Clear processed sets to allow new processing
+    processedConditionIds.clear();
+    inFlightConditionIds.clear();
+    boughtAssets.clear();
+
+    // Reload market data
+    loadMarketData();
+
+    // Create new client and connect
+    client = new RealTimeDataClient({ onMessage, onConnect, onStatusChange });
+    client.connect();
+
+    appLogger.info("Reconnected with fresh data");
+}
+
+/**
+ * Setup hourly reload at minute 00
+ */
+function setupHourlyReload(): void {
+    const now = new Date();
+    const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
+    const msUntilNextHour = nextHour.getTime() - now.getTime();
+
+    appLogger.info("Next reload scheduled at: {time}", { time: nextHour.toISOString() });
+
+    // Schedule first reload
+    setTimeout(async () => {
+        await reconnectWithFreshData();
+
+        // Then schedule every hour
+        setInterval(async () => {
+            await reconnectWithFreshData();
+        }, 60 * 60 * 1000); // 1 hour in milliseconds
+
+    }, msUntilNextHour);
+}
+
+/**
  * Application entry point
  */
 async function main(): Promise<void> {
     await configureLogging();
     appLogger.info("Starting Polymarket Realtime Trading Bot...");
-    appLogger.info("Trading Rules: Buy > {buyThreshold}", {
-        buyThreshold: TRADING_RULES.BUY_PRICE_THRESHOLD,
-    });
-    new RealTimeDataClient({ onMessage, onConnect, onStatusChange }).connect();
+
+    // Load initial market data
+    loadMarketData();
+
+    // Connect WebSocket
+    client = new RealTimeDataClient({ onMessage, onConnect, onStatusChange });
+    client.connect();
+
+    // Setup hourly reload
+    setupHourlyReload();
 }
 
 main().catch(console.error);
-
-

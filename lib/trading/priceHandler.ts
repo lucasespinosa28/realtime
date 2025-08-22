@@ -5,7 +5,7 @@ export function executeBuyLogicSimulated(tradeData: TradeData): number {
   // Here you could add more simulated logic if needed
   return price;
 }
-import type { TradeData } from "../../main";
+import type { TradeData } from "../../old";
 import { polymarketAPILogger } from "../../utils/logger";
 
 
@@ -25,31 +25,18 @@ const priceHandler = (tradeData: TradeData): number => {
 export const priceSimulatedHandler = (tradeData: TradeData): number => {
   // Determine asset and outcome
   const title = tradeData.title.toLowerCase();
-  const outcome = tradeData.outcome.toLowerCase();
   let price = 0.8;
   switch (true) {
-    case title.includes("xrp") && outcome === "up":
-      price = 0.6;
-      break;
-    case title.includes("xrp") && outcome === "down":
+    case title.includes("xrp"):
       price = 0.5;
       break;
-    case title.includes("solana") && outcome === "up":
+    case title.includes("solana"):
       price = 0.8;
       break;
-    case title.includes("solana") && outcome === "down":
-      price = 0.8;
-      break;
-    case title.includes("bitcoin") && outcome === "up":
+    case title.includes("bitcoin"):
       price = 0.05;
       break;
-    case title.includes("bitcoin") && outcome === "down":
-      price = 0.05;
-      break;
-    case title.includes("ethereum") && outcome === "up":
-      price = 0.8;
-      break;
-    case title.includes("ethereum") && outcome === "down":
+    case title.includes("ethereum"):
       price = 0.8;
       break;
     default:

@@ -1,4 +1,4 @@
-import type { Order } from "./model";
+import type { Order, TradeOrder } from "./model";
 
 const reported = new Map();
 
@@ -7,6 +7,15 @@ const storage = {
     hasId: (id: string) => reported.has(id),
     add: (id: string, data: Order) => reported.set(id, data),
     get: (id: string): Order => reported.get(id),
+    delete: (id: string) => reported.delete(id)
+}
+
+
+const storageOrder = {
+    getAllIds: () => Array.from(reported.keys()),
+    hasId: (id: string) => reported.has(id),
+    add: (id: string, data: TradeOrder) => reported.set(id, data),
+    get: (id: string): TradeOrder => reported.get(id),
     delete: (id: string) => reported.delete(id)
 }
 
@@ -29,4 +38,4 @@ const hedgeMap = {
 
 const handleId = (tag: string, id: string) => `${tag}${id}`;
 const eventsTokens: string[] = [];
-export { storage,logger, handleId, eventsTokens, hedgeMap };
+export { storage,logger, handleId,storageOrder, eventsTokens, hedgeMap };

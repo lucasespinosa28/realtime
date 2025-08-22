@@ -1,4 +1,3 @@
-
 import CONSTANT from "./constant";
 import type { Instructions } from "./model";
 
@@ -17,7 +16,7 @@ const instructions: Instructions[] = [
         size: 5,
     },
     {
-        title: "Ethereum Up or Down ",
+        title: "Ethereum Up or Down",  // removed trailing space
         minutes: 0,
         price: 0.90,
         size: 5,

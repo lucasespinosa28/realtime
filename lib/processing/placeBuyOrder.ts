@@ -4,7 +4,7 @@ import { memoryDatabase } from "../../main";
 import { appLogger } from "../../utils/logger";
 import type { TradeData } from "../storage/model";
 import { logger } from "../storage";
-import { extractBaseTitle } from "./handleMessage";
+import { formatTitle } from "../../utils/parse";
 
 /**
  * Places a buy order for a given asset
@@ -35,7 +35,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in memory for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-        const baseTitle = extractBaseTitle(tradeData.title); // You need to import this function
+        const baseTitle = formatTitle(tradeData.title); // You need to import this function
         const price = memoryDatabase.getInstructionByTitle(baseTitle)?.price || 0.8;
 
        

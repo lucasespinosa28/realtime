@@ -55,17 +55,18 @@ class DatabaseMemoryManager {
     dbLogger.info("Database initialized with instructions and trade_orders");
   }
 
- insertInstruction(instructions: Instructions[]): { success: boolean; } {
+  insertInstruction(instructions: Instructions[]): { success: boolean; } {
     try {
+      // Clear any existing instructions first
+      this.db.run(`DELETE FROM instructions`);
+
       const insert = this.db.prepare(
         `INSERT INTO instructions (title, minutes, price, size) VALUES ($title, $minutes, $price, $size)`
       );
 
-      instructions.forEach(instr => {
-        console.log(`Inserting: "${instr.title}"`);
-
+      instructions.forEach((instr) => {
         insert.run({
-          title: instr.title, // Store original title, don't format
+          title: instr.title,
           minutes: instr.minutes,
           price: instr.price,
           size: instr.size
@@ -77,39 +78,12 @@ class DatabaseMemoryManager {
       dbLogger.error("Failed to insert instructions:", { error });
       return { success: false };
     }
-}
+  }
 
-getInstructionByTitle(title: string): Instructions | null {
-    // Normalize both titles for comparison (lowercase, trim spaces)
-    const normalizedSearchTitle = title.toLowerCase().trim();
-    
-    const stmt = this.db.prepare(`SELECT * FROM instructions`);
-    const allInstructions = stmt.all() as Instructions[];
-    
-    // Find by normalizing both titles
-    for (const instruction of allInstructions) {
-        const normalizedDbTitle = instruction.title.toLowerCase().trim();
-        if (normalizedDbTitle === normalizedSearchTitle) {
-            return instruction;
-        }
-    }
-    
-    // If exact match not found, try partial matching
-    for (const instruction of allInstructions) {
-        const normalizedDbTitle = instruction.title.toLowerCase().trim();
-        // Check if the search title contains the key parts
-        const searchWords = normalizedSearchTitle.split(' ');
-        const dbWords = normalizedDbTitle.split(' ');
-        
-        // If all words from db title are in search title, it's a match
-        if (dbWords.every(word => searchWords.includes(word))) {
-            return instruction;
-        }
-    }
-    
-    return null;
-}
-
+  getInstructionByTitle(title: string): Instructions | null {
+    const stmt = this.db.prepare(`SELECT * FROM instructions WHERE title = ?`);
+    return stmt.get(title) as Instructions | null;
+  }
 
   createTradeOrder(order: TradeOrder): { success: boolean; } {
     try {

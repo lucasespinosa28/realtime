@@ -70,8 +70,11 @@ export function extractBaseTitle(fullTitle: string): string {
 
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
-    // Use the extracted base title for lookup - this is already formatted by extractBaseTitle
-    const baseTitle = extractBaseTitle(tradeData.title);
+    // Use the extracted base title for lookup - this is already formatted by formatTitle
+    const baseTitle = formatTitle(tradeData.title);
+     appLogger.info("Title", {
+            title: tradeData.title,
+        });
     const instruction = memoryDatabase.getInstructionByTitle(baseTitle); // Don't format again!
 
     if (!instruction) {

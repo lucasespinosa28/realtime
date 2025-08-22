@@ -242,37 +242,34 @@ async function handleTradeMessage(message: Message): Promise<void> {
             await checkOrderStatus(tradeData.conditionId, storedOrder.asset, tradeData.outcome, tradeData);
         }
         const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
-        if (withinBuyWindow) {
-            // Allow Bitcoin trades to pass if price is exactly 0.05, otherwise use the normal threshold
-            const isBitcoin = tradeData.title.toLowerCase().includes("bitcoin") || (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false);
-            if ((isBitcoin && tradeData.price === 0.05) || tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
-                // Skip if already processed, claimed, or asset already bought
-                if (
-                    processedConditionIds.has(tradeData.conditionId) ||
-                    inFlightConditionIds.has(tradeData.conditionId) ||
-                    boughtAssets.has(tradeData.asset)
-                ) {
-                    continue;
-                }
+        const isBitcoin = tradeData.title.toLowerCase().includes("bitcoin") || (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false);
+        if ((isBitcoin && tradeData.price === 0.05) || (withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
+            // Skip if already processed, claimed, or asset already bought
+            if (
+                processedConditionIds.has(tradeData.conditionId) ||
+                inFlightConditionIds.has(tradeData.conditionId) ||
+                boughtAssets.has(tradeData.asset)
+            ) {
+                continue;
+            }
 
-                // Claim this conditionId to prevent duplicate processing
-                inFlightConditionIds.add(tradeData.conditionId);
+            // Claim this conditionId to prevent duplicate processing
+            inFlightConditionIds.add(tradeData.conditionId);
 
-                // Mark processing for visibility
-                storage.add(tradeData.asset, {
-                    orderID: "",
-                    asset: tradeData.asset,
-                    outcome: tradeData.outcome,
-                    status: "processing",
-                    conditionId: tradeData.conditionId
-                });
+            // Mark processing for visibility
+            storage.add(tradeData.asset, {
+                orderID: "",
+                asset: tradeData.asset,
+                outcome: tradeData.outcome,
+                status: "processing",
+                conditionId: tradeData.conditionId
+            });
 
-                try {
-                    await executeBuyLogic(tradeData);
-                } finally {
-                    // Always release the claim so future retries are possible if not processed
-                    inFlightConditionIds.delete(tradeData.conditionId);
-                }
+            try {
+                await executeBuyLogic(tradeData);
+            } finally {
+                // Always release the claim so future retries are possible if not processed
+                inFlightConditionIds.delete(tradeData.conditionId);
             }
         }
     }

@@ -1,6 +1,6 @@
 import type { Market, MarketToken } from "./lib/trading/model";
 import { RealTimeDataClient, type Message } from "./lib/websocket";
-import type { OrderBook } from "./lib/websocket/model";
+import type { Book, OrderBook } from "./lib/websocket/model";
 import { crypto1hMarkets } from "./scripts/filterMarkerts";
 import { appLogger, configureLogging } from "./utils/logger";
 
@@ -19,14 +19,32 @@ const tokens: Token[] = markets.flatMap(market => market.tokens.map(token => ({
 function tokensId(): string {
     return tokens.map(token => `"${token.token_id}"`).join(",");
 }
-console.log(tokensId());
+
+const lastBuy = new Map();
+const lastBuyAsk = async (asks: Book[], id: string) => {
+    if (!Array.isArray(asks) || asks.length === 0) return;
+    const lastAsk = asks.reverse()[0]
+    if (lastBuy.get(id)) {
+        if (Number(lastAsk.price) === 0.99 || Number(lastAsk.price) === 0.98) {
+            console.log("Last Buy Ask:", lastAsk);
+        }
+    }
+   
+}
+
 /**
  * WebSocket event handlers
  */
 const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
-    const orderBook: OrderBook = message;
+    const orderBook = message as unknown as OrderBook;
+    lastBuy.set(orderBook.payload.asset_id, false);
+
     const asks = orderBook.payload.asks;
     const bids = orderBook.payload.bids;
+
+    console.log(await lastBuyAsk(asks, orderBook.payload.asset_id,))
+    console.log("Order Book asks:", asks);
+    console.log("Order Book bids:", bids.reverse());
 };
 
 //  message: {

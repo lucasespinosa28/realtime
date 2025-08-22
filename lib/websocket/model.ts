@@ -100,22 +100,7 @@ export interface OrderBook {
     type: string;
 }
 
-interface Book {
-    price:number;
-    size:number;
-}
 
-export interface Payload {
-    market: string;
-    asset_id: string;
-    timestamp: string;
-    hash: string;
-    bids: Book[];
-    asks: Book[];
-    min_order_size: string;
-    tick_size: string;
-    neg_risk: boolean;
-}
 export interface Book {
     price: string;
     size: string;

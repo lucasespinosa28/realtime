@@ -56,7 +56,7 @@ class DatabaseMemoryManager {
     dbLogger.info("Database initialized with instructions and trade_orders");
   }
 
-  iinsertInstruction(instruction: Instructions[]): { success: boolean; } {
+  insertInstruction(instruction: Instructions[]): { success: boolean; } {
     try {
       const insert = this.db.prepare(
         `INSERT INTO instructions (title, minutes, price, size) VALUES ($title, $minutes, $price, $size)`

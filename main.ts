@@ -66,10 +66,20 @@ function tokensId(): string {
 
 const lastBuy = new Map();
 const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
-    if (!Array.isArray(asks) || asks.length === 0) return;
+    if (!Array.isArray(asks) || asks.length === 0) {
+        appLogger.debug("No asks available for asset {asset}", { asset: tradeData.asset });
+        return;
+    }
+    
     const lastAsk = asks.reverse()[0]
+    appLogger.debug("Last ask for asset {asset}: price={price}", {
+        asset: tradeData.asset,
+        price: lastAsk.price
+    });
+    
     if (!lastBuy.get(tradeData.asset)) {
         if (Number(lastAsk.price) === 0.99) {
+            appLogger.info("Found 0.99 ask price for {title} - placing immediate buy order", { title: tradeData.title });
             console.log("Last Buy Ask:", lastAsk);
             lastBuy.set(tradeData.asset, true);
             const order = await postOrder(
@@ -89,10 +99,11 @@ const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
                     status: order.status,
                     conditionId: tradeData.conditionId
                 });
-                appLogger.info("Buy order placed for {title} at price {price}, conditionId {conditionId}", {
+                appLogger.info("Immediate buy order placed for {title} at price {price}, conditionId {conditionId}, orderID {orderID}", {
                     title: tradeData.title,
                     price: 0.99,
-                    conditionId: tradeData.conditionId
+                    conditionId: tradeData.conditionId,
+                    orderID: order.orderID
                 });
             } else {
                 // Mark as failed
@@ -102,9 +113,16 @@ const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
                     status: "failed",
                     conditionId: tradeData.conditionId
                 });
-                appLogger.warn("Buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
+                appLogger.warn("Immediate buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
             }
+        } else {
+            appLogger.debug("Ask price {price} not equal to 0.99 for {title} - skipping immediate buy", {
+                price: Number(lastAsk.price),
+                title: tradeData.title
+            });
         }
+    } else {
+        appLogger.debug("Already processed immediate buy for asset {asset}", { asset: tradeData.asset });
     }
 }
 
@@ -124,13 +142,20 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     const asks = orderBook.payload.asks;
     const bids = orderBook.payload.bids;
 
+    appLogger.debug("Received orderbook for asset {assetId}: {askCount} asks, {bidCount} bids", {
+        assetId: orderBook.payload.asset_id,
+        askCount: asks?.length || 0,
+        bidCount: bids?.length || 0
+    });
 
     const title = titles.get(orderBook.payload.asset_id);
     if (!title) {
+        appLogger.warn("Title not found for asset_id: {assetId} - skipping message", { assetId: orderBook.payload.asset_id });
         throw new Error(`Title not found for asset_id: ${orderBook.payload.asset_id}`);
     }
     const bidBook = lastBuyBid(bids);
     if (!bidBook) {
+        appLogger.debug("No bids available for asset {assetId} - skipping processing", { assetId: orderBook.payload.asset_id });
         // No bids available, skip processing this message
         return;
     }
@@ -143,11 +168,22 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         timestamp: orderBook.timestamp,
     };
 
+    appLogger.debug("Processing trade data for {title}: price={price}, conditionId={conditionId}, withinBuyWindow={withinBuyWindow}", {
+        title: tradeData.title,
+        price: tradeData.price,
+        conditionId: tradeData.conditionId,
+        withinBuyWindow: TRADING_RULES.START_TIME < currentMinutes
+    });
+
     await lastBuyAsk(asks, tradeData)
     // 1. Always check if we have an existing order and update its status
     if (storageOrder.hasId(tradeData.asset)) {
+        appLogger.debug("Found existing order for asset {asset} - checking status", { asset: tradeData.asset });
         await checkOrderStatus(tradeData);
+    } else {
+        appLogger.debug("No existing order found for asset {asset}", { asset: tradeData.asset });
     }
+    
     const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
     if ((withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
         // Skip if already processed, claimed, or asset already bought
@@ -156,12 +192,24 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
             inFlightConditionIds.has(tradeData.conditionId) ||
             boughtAssets.has(tradeData.asset)
         ) {
+            appLogger.debug("Skipping buy order for {title}: alreadyProcessed={processed}, inFlight={inFlight}, alreadyBought={bought}", {
+                title: tradeData.title,
+                processed: processedConditionIds.has(tradeData.conditionId),
+                inFlight: inFlightConditionIds.has(tradeData.conditionId),
+                bought: boughtAssets.has(tradeData.asset)
+            });
             return;
         }
 
+        appLogger.info("Initiating buy order for {title}: price={price} >= threshold={threshold}", {
+            title: tradeData.title,
+            price: tradeData.price,
+            threshold: TRADING_RULES.BUY_PRICE_THRESHOLD
+        });
 
         // Claim this conditionId to prevent duplicate processing
         inFlightConditionIds.add(tradeData.conditionId);
+        appLogger.debug("Marked conditionId {conditionId} as in-flight", { conditionId: tradeData.conditionId });
 
         // Mark processing for visibility
         storageOrder.add(tradeData.asset, {
@@ -177,7 +225,15 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         } finally {
             // Always release the claim so future retries are possible if not processed
             inFlightConditionIds.delete(tradeData.conditionId);
+            appLogger.debug("Released in-flight lock for conditionId {conditionId}", { conditionId: tradeData.conditionId });
         }
+    } else {
+        appLogger.debug("Not placing buy order for {title}: withinBuyWindow={withinBuyWindow}, price={price}, threshold={threshold}", {
+            title: tradeData.title,
+            withinBuyWindow,
+            price: tradeData.price,
+            threshold: TRADING_RULES.BUY_PRICE_THRESHOLD
+        });
     }
 }
 

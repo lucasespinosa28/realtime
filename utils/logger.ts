@@ -15,12 +15,13 @@ export async function configureLogging() {
     },
     loggers: [
       { category: "polymarket", lowestLevel: "debug", sinks: ["console", "file"] },
-      { category: "polymarket:app", lowestLevel: "info", sinks: ["console", "file"] },
-      { category: "polymarket:websocket", lowestLevel: "warning", sinks: ["console", "file"] },
+      { category: "polymarket:app", lowestLevel: "debug", sinks: ["console", "file"] },
+      { category: "polymarket:websocket", lowestLevel: "info", sinks: ["console", "file"] },
       { category: "polymarket:airtable", lowestLevel: "info", sinks: ["console", "file"] },
-      { category: "polymarket:memory", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:memory", lowestLevel: "debug", sinks: ["console", "file"] },
       { category: "polymarket:scripts", lowestLevel: "info", sinks: ["console", "file"] },
-      { category: "polymarket:db", lowestLevel: "info", sinks: ["console", "file"] }
+      { category: "polymarket:db", lowestLevel: "info", sinks: ["console", "file"] },
+      { category: "polymarket:api", lowestLevel: "debug", sinks: ["console", "file"] }
     ]
   });
 }

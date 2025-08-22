@@ -8,6 +8,12 @@ import { appLogger } from "./utils/logger";
  */
 export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
     try {
+        appLogger.debug("Starting placeBuyOrder for {title} (asset: {asset}, conditionId: {conditionId})", {
+            title: tradeData.title,
+            asset: tradeData.asset,
+            conditionId: tradeData.conditionId
+        });
+
         // Check if we already processed this condition
         if (processedConditionIds.has(tradeData.conditionId)) {
             // Only log the first time we see this conditionId
@@ -23,11 +29,9 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
 
         // Double-check idempotency: if memory already contains a buy for this asset, skip
         if (boughtAssets.has(tradeData.asset)) {
-            appLogger.info("Buy already recorded in DB for asset {asset} — skipping post", { asset: tradeData.asset });
+            appLogger.info("Buy already recorded in memory for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-
-
 
         const title = tradeData.title.toLowerCase();
         let price = 0.8;
@@ -47,10 +51,15 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             default:
                 price = 0.8;
         }
-        appLogger.info("Calculated price for {title}: {originalPrice} -> {calculatedPrice}", {
+        appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,
             originalPrice: tradeData.price,
             calculatedPrice: price
+        });
+
+        appLogger.debug("Posting order: asset={asset}, price={price}, size=5", {
+            asset: tradeData.asset,
+            price: price
         });
 
         const order = await postOrder(
@@ -58,6 +67,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             price,
             5,
         );
+        
         if (order.success) {
             // Track in memory to avoid future DB checks
             boughtAssets.add(tradeData.asset);
@@ -70,9 +80,11 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 status: order.status,
                 conditionId: tradeData.conditionId
             });
-            appLogger.info("Buy order placed for {title} at price {price}, conditionId {conditionId}", {
-                title,
+            appLogger.info("✅ Buy order placed successfully for {title}: price={price}, orderID={orderID}, status={status}, conditionId={conditionId}", {
+                title: tradeData.title,
                 price,
+                orderID: order.orderID,
+                status: order.status,
                 conditionId: tradeData.conditionId
             });
             return true;
@@ -84,12 +96,18 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
                 status: "failed",
                 conditionId: tradeData.conditionId
             });
-            appLogger.warn("Buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
+            appLogger.warn("❌ Buy order failed for {title} asset {asset}: success={success}", { 
+                title: tradeData.title, 
+                asset: tradeData.asset,
+                success: order.success
+            });
             return false;
         }
     } catch (error) {
-        appLogger.error("Error placing buy order for {title}: {error}", {
+        appLogger.error("❌ Error placing buy order for {title} (asset: {asset}, conditionId: {conditionId}): {error}", {
             title: tradeData.title,
+            asset: tradeData.asset,
+            conditionId: tradeData.conditionId,
             error: error instanceof Error ? error.message : String(error)
         });
         // Clean up processing status on error to allow retry

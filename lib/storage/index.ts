@@ -57,34 +57,37 @@ class DatabaseMemoryManager {
 
   insertInstruction(instructions: Instructions[]): { success: boolean; } {
     try {
-      // Clear any existing instructions first
-      this.db.run(`DELETE FROM instructions`);
-
-      const insert = this.db.prepare(
-        `INSERT INTO instructions (title, minutes, price, size) VALUES ($title, $minutes, $price, $size)`
+      const stmt = this.db.prepare(
+        `INSERT INTO instructions (title, minutes, price, size) VALUES (?, ?, ?, ?)`
       );
 
-      instructions.forEach((instr) => {
-        insert.run({
-          title: instr.title,
-          minutes: instr.minutes,
-          price: instr.price,
-          size: instr.size
-        });
-      });
+      for (const instruction of instructions) {
+        stmt.run(instruction.title, instruction.minutes, instruction.price, instruction.size);
+      }
 
+      dbLogger.info("Instructions inserted successfully");
       return { success: true };
     } catch (error) {
-      dbLogger.error("Failed to insert instructions:", { error });
+      console.error("INSERT ERROR:", error); // Debug line
+      dbLogger.error("Failed to insert instructions: {error}", {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return { success: false };
     }
   }
-
   getInstructionByTitle(title: string): Instructions | null {
     const stmt = this.db.prepare(`SELECT * FROM instructions WHERE title = ?`);
     return stmt.get(title) as Instructions | null;
   }
+  getAllInstructions(): Instructions[] {
+    const stmt = this.db.prepare(`SELECT * FROM instructions`);
+    return stmt.all() as Instructions[];
+  }
 
+  getInstructionByPartialTitle(searchTerm: string): Instructions | null {
+    const stmt = this.db.prepare(`SELECT * FROM instructions WHERE title LIKE ?`);
+    return stmt.get(`%${searchTerm}%`) as Instructions | null;
+  }
   createTradeOrder(order: TradeOrder): { success: boolean; } {
     try {
       const insert = this.db.prepare(

@@ -60,21 +60,10 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
 
 }
 
-export function extractBaseTitle(fullTitle: string): string {
-    // Remove timestamp patterns like "- august 22, 5pm et", "- september 15, 2am et", etc.
-    // This regex matches: - [month] [day], [time][am/pm] et
-    const cleanTitle = fullTitle.replace(/\s*-\s*[a-zA-Z]+\s+\d+,\s*\d+[ap]m\s+et\s*$/i, '');
-    return formatTitle(cleanTitle);
-}
-
-
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
     // Use the extracted base title for lookup - this is already formatted by formatTitle
-    const baseTitle = formatTitle(tradeData.title);
-     appLogger.info("Title", {
-            title: tradeData.title,
-        });
+    const baseTitle = formatTitle(tradeData.title)
     const instruction = memoryDatabase.getInstructionByTitle(baseTitle); // Don't format again!
 
     if (!instruction) {

@@ -35,10 +35,12 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in memory for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-        const baseTitle = formatTitle(tradeData.title); // You need to import this function
-        const price = memoryDatabase.getInstructionByTitle(baseTitle)?.price || 0.8;
+        const baseTitle = formatTitle(tradeData.title);
+        const instruction = memoryDatabase.getInstructionByTitle(baseTitle);
 
-       
+        const price = instruction?.price || 0.8;
+
+
 
         appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,

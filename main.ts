@@ -14,11 +14,6 @@ export const memoryDatabase = new DatabaseMemoryManager()
  */
 async function main(): Promise<void> {
     await configureLogging();
-    for (const instruction of instructions) {
-        appLogger.info("Inserting instruction: {title}", {
-            title: instruction.title,
-        });
-    }
     const insertResult = memoryDatabase.insertInstruction(instructions);
     if (insertResult.success) {
         appLogger.info("Instructions inserted successfully");

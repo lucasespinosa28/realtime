@@ -1,35 +1,36 @@
-import { storageOrder } from "./lib/storage/memory";
-import { polymarket, sellOrder } from "./lib/trading";
-import type { TradeData } from "./main";
-import { appLogger } from "./utils/logger";
+import { memoryDatabase } from "../../main";
+import { appLogger } from "../../utils/logger";
+import type { TradeData } from "../storage/model";
+import { polymarket } from "../trading";
 
 /**
  * Checks if a placed buy order has been matched
  */
 export async function checkOrderStatus(tradeData: TradeData): Promise<void> {
-    if (!storageOrder.hasId(tradeData.asset)) {
+    if (!memoryDatabase.existTradeOrder(tradeData.asset)) {
         appLogger.debug("No stored order found for asset {asset} - skipping status check", { asset: tradeData.asset });
         return;
     }
 
-    const storedOrder = storageOrder.get(tradeData.asset);
+    const storedOrder = memoryDatabase.readTradeOrder(tradeData.asset);
     appLogger.debug("Checking order status for asset {asset}, current status: {status}, orderID: {orderID}", {
-        asset: tradeData.asset,
-        status: storedOrder.status,
-        orderID: storedOrder.orderID
+        asset: storedOrder?.tradeData.asset,
+        status: storedOrder?.status,
+        orderID: storedOrder?.orderID
     });
 
     // Skip if already matched or outcome doesn't match
-    if (storedOrder.status === "MATCHED") {
-        appLogger.debug("Order already matched for asset {asset} - skipping check", { asset: tradeData.asset });
+    if (storedOrder?.status === "MATCHED") {
+        appLogger.debug("Order already matched for asset {title} {asset} - skipping check", { title: tradeData.title, asset: tradeData.asset });
         return;
     }
 
-    const orderId = storedOrder.orderID;
+    const orderId = storedOrder?.orderID;
     if (!orderId) {
-        appLogger.warn("No orderID found for asset {asset} with status {status} - cannot check status", {
-            asset: tradeData.asset,
-            status: storedOrder.status
+        appLogger.warn("No orderID found for asset {title} {asset} with status {status} - cannot check status", {
+            title: storedOrder?.tradeData.title,
+            asset: storedOrder?.tradeData.asset,
+            status: storedOrder?.status
         });
         return;
     }
@@ -51,31 +52,12 @@ export async function checkOrderStatus(tradeData: TradeData): Promise<void> {
                 orderID: orderId
             });
             // Update storageOrder with matched status
-            storageOrder.add(tradeData.asset, {
+            memoryDatabase.updateTradeOrder({
                 orderID: orderId,
-                asset: tradeData.asset,
                 status: "MATCHED",
-                conditionId: tradeData.conditionId
+                tradeData: tradeData
             });
 
-            // Only place sell order if title includes "bitcoin" or minutes < 30
-            const currentMinutes = new Date().getMinutes();
-            if (
-                tradeData.title.toLowerCase().includes("bitcoin") ||
-                currentMinutes < 45
-            ) {
-                const sellOrderResult = await sellOrder(
-                    order.asset_id,
-                    0.90,
-                    5,
-                );
-
-                if (sellOrderResult.success) {
-                    appLogger.info("Sell order placed for asset {title} at price 0.90 with size 5", {
-                        title: tradeData.title
-                    });
-                }
-            }
         } else if (order.status !== storedOrder.status) {
             // Log status changes
             appLogger.info("Order status changed for asset {asset}: {oldStatus} → {newStatus}", {
@@ -84,11 +66,10 @@ export async function checkOrderStatus(tradeData: TradeData): Promise<void> {
                 newStatus: order.status
             });
             // Update with new status
-            storageOrder.add(tradeData.asset, {
+            memoryDatabase.updateTradeOrder({
                 orderID: orderId,
-                asset: tradeData.asset,
                 status: order.status,
-                conditionId: tradeData.conditionId
+                tradeData: tradeData
             });
 
         }

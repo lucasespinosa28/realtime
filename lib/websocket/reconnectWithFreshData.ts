@@ -1,20 +1,20 @@
-import { RealTimeDataClient } from "./lib/websocket";
-import { client, processedConditionIds, inFlightConditionIds, boughtAssets, loadMarketData } from "./main";
-import { appLogger } from "./utils/logger";
-
 /**
  * Reconnect WebSocket with fresh data
  */
 
+import { appLogger } from "../../utils/logger";
+import { loadMarketData } from "../processing/marketData";
+import { boughtAssets, client, inFlightConditionIds, processedConditionIds, setClient } from "../processing/state";
+import { RealTimeDataClient } from "./client";
+import { onConnect, onMessage, onStatusChange } from "./handlers";
+
 export async function reconnectWithFreshData(): Promise<void> {
     appLogger.info("Reconnecting with fresh market data...");
 
-    // Disconnect current client if exists
     if (client) {
         client.disconnect();
-        client = null;
+        setClient(null);
     }
-
     // Clear processed sets to allow new processing
     processedConditionIds.clear();
     inFlightConditionIds.clear();
@@ -23,9 +23,8 @@ export async function reconnectWithFreshData(): Promise<void> {
     // Reload market data
     loadMarketData();
 
-    // Create new client and connect
-    client = new RealTimeDataClient({ onMessage, onConnect, onStatusChange });
-    client.connect();
+    setClient(new RealTimeDataClient({ onMessage, onConnect, onStatusChange }));
+    client!.connect();
 
     appLogger.info("Reconnected with fresh data");
 }

@@ -1,5 +1,5 @@
 import { reconnectWithFreshData } from "./reconnectWithFreshData";
-import { appLogger } from "./utils/logger";
+import { appLogger } from "../../utils/logger";
 
 /**
  * Setup hourly reload at minute 00

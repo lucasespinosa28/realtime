@@ -1,40 +1,15 @@
-export interface Trade {
-    asset: string;
-    outcome: string;
+export interface TradeData {
     conditionId: string;
-    price: number;
-    size: number;
-    side: string;
-    timestamp: number;
-    bio: string;
-    eventSlug: string;
-    icon: string;
-    name: string;
-    outcomeIndex: number;
-    profileImage: string;
-    proxyWallet: string;
-    pseudonym: string;
-    slug: string;
+    asset: string;
     title: string;
-    transactionHash: string;
-}
-
-export interface Buy {
-    asset: string;
-    conditionId: string;
     price: number;
-    size: number;
-    side: "BUY";
     timestamp: number;
 }
 
-export interface Sell {
-    asset: string;
-    conditionId: string;
-    price: number;
-    size: number;
-    side: "SELL";
-    timestamp: number;
+export interface TradeOrder {
+    orderID: string;
+    status: string;
+    tradeData: TradeData;
 }
 
 export interface Market {
@@ -78,11 +53,4 @@ export interface Tokens {
     outcome: string;
     price: number;
     winner: boolean;
-}
-
-export interface TradeOrder {
-    asset: string;
-    orderID: string;
-    status: string;
-    conditionId: string;
 }

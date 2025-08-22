@@ -42,47 +42,7 @@ export interface SubscriptionMessage {
     }[];
 }
 
-/**
- * Represents a real-time message received from the WebSocket server.
- */
 export interface Message {
-    /** Topic of the message */
-    topic: string;
-
-    /** Type of the message */
-    type: string;
-
-    /** Timestamp of when the message was sent */
-    timestamp: number;
-
-    /** Payload containing the message data */
-    payload: {
-        asset: string;
-        bio: string;
-        conditionId: string;
-        eventSlug: string;
-        icon: string;
-        name: string;
-        outcome: string;
-        outcomeIndex: number;
-        price: number;
-        profileImage: string;
-        proxyWallet: string;
-        pseudonym: string;
-        side: string;
-        size: number;
-        slug: string;
-        timestamp: number;
-        title: string;
-        transactionHash: string;
-    };
-
-    /** Connection ID */
-    connection_id: string;
-}
-
-
-export interface OrderBook {
     connection_id: string;
     payload: {
         asks: Book[];

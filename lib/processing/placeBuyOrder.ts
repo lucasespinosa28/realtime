@@ -1,13 +1,15 @@
-import { logger, storageOrder } from "./lib/storage/memory";
-import { postOrder } from "./lib/trading";
-import { boughtAssets, processedConditionIds, type TradeData } from "./main";
-import { appLogger } from "./utils/logger";
+import { boughtAssets, processedConditionIds } from "./state";
+import { postOrder } from "../trading";
+import { memoryDatabase } from "../../main";
+import { appLogger } from "../../utils/logger";
+import { formatTitle } from "../../utils/parse";
+import type { TradeData } from "../storage/model";
+import { logger } from "../storage";
 
 /**
  * Places a buy order for a given asset
  */
 export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
-    const currentMinutes = new Date().getMinutes();
     try {
         appLogger.debug("Starting placeBuyOrder for {title} (asset: {asset}, conditionId: {conditionId})", {
             title: tradeData.title,
@@ -33,32 +35,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             appLogger.info("Buy already recorded in memory for asset {asset} — skipping post", { asset: tradeData.asset });
             return true;
         }
-
-        let price = 0.8;
-        const title = tradeData.title.toLowerCase();
-        switch (true) {
-            case title.includes("xrp"):
-                price = 0.5;
-                break;
-            case title.includes("solana"):
-                price = 0.8;
-                break;
-            case title.includes("bitcoin"):
-                price = 0.05;
-                break;
-            case title.includes("ethereum"):
-                price = 0.8;
-                break;
-            default:
-                price = 0.8;
-        }
-        // If currentMinutes is less than 30, set price to 0.5 (overrides switch)
-        if (currentMinutes <= 30) {
-            appLogger.debug("Current minutes {currentMinutes} is less than or equal to 30, setting price to 0.5", {
-                currentMinutes
-            });
-            price = 0.5;
-        }
+        const price = memoryDatabase.getInstructionByTitle(formatTitle(tradeData.title))?.price || 0.8;
 
         appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,
@@ -99,12 +76,11 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             boughtAssets.add(tradeData.asset);
             // Mark this conditionId as processed
             processedConditionIds.add(tradeData.conditionId);
-            // Update storageOrder with order details
-            storageOrder.add(tradeData.asset, {
+            // Update memoryDatabase with order details
+            memoryDatabase.updateTradeOrder({
                 orderID: order.orderID,
-                asset: tradeData.asset,
                 status: order.status,
-                conditionId: tradeData.conditionId
+                tradeData: tradeData,
             });
             appLogger.info("✅ Buy order placed successfully for {title}: price={price}, orderID={orderID}, status={status}, conditionId={conditionId}", {
                 title: tradeData.title,
@@ -116,11 +92,10 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             return true;
         } else {
             // Mark as failed
-            storageOrder.add(tradeData.asset, {
+            memoryDatabase.updateTradeOrder({
                 orderID: "",
-                asset: tradeData.asset,
+                tradeData: tradeData,
                 status: "failed",
-                conditionId: tradeData.conditionId
             });
             appLogger.warn("❌ Buy order failed for {title} asset {asset}: success={success}", {
                 title: tradeData.title,
@@ -137,7 +112,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             error: error instanceof Error ? error.message : String(error)
         });
         // Clean up processing status on error to allow retry
-        storageOrder.delete(tradeData.asset);
+        memoryDatabase.deleteTradeOrder(tradeData.asset);
         return false;
     }
 }

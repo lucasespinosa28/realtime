@@ -3,33 +3,32 @@ import type { Instructions } from "./model";
 
 const instructions: Instructions[] = [
     {
-        title: "XRP Up or Down",
+        title: "Xrp Up Or Down",  // Changed to match formatTitle output
         minutes: 0,
         price: 0.90,
         size: 5,
     },
     {
         //bitcoin up or down - august 22, 2am et
-        title: "Bitcoin Up or Down",
+        title: "Bitcoin Up Or Down",  // Changed "or" to "Or"
         minutes: 0,
         price: 0.05,
         size: 5,
     },
     {
-        title: "Ethereum Up or Down",  // removed trailing space
+        title: "Ethereum Up Or Down",  // Changed "or" to "Or"
         minutes: 0,
         price: 0.90,
         size: 5,
     },
     {
-        title: "Solana Up or Down",
+        title: "Solana Up Or Down",  // Changed "or" to "Or"
         minutes: 0,
         price: 0.90,
         size: 5,
     }
-    
-]
 
+]
 export {
     instructions,
     CONSTANT,

@@ -78,10 +78,26 @@ class DatabaseMemoryManager {
     }
   }
 
-  getInstructionByTitle(title: string): Instructions | null {
+getInstructionByTitle(title: string): Instructions | null {
+    // First, let's see what we're looking for and what we have
+    const allStmt = this.db.prepare(`SELECT title FROM instructions`);
+    const allTitles = allStmt.all();
+    
+    dbLogger.info(`\n=== DEBUG DATABASE LOOKUP ===`);
+    dbLogger.info(`Looking for: "${title}"`);
+    dbLogger.info(`Available titles in database:`);
+    allTitles.forEach((row: any, index: number) => {
+        dbLogger.info(`  ${index + 1}. "${row.title}"`);
+    });
+    
     const stmt = this.db.prepare(`SELECT * FROM instructions WHERE LOWER(title) = LOWER(?)`);
-    return stmt.get(title) as Instructions | null;
-  }
+    const result = stmt.get(title) as Instructions | null;
+    
+    dbLogger.info(`Query result: ${result ? 'FOUND' : 'NOT FOUND'}`);
+    dbLogger.info(`===============================\n`);
+    
+    return result;
+}
 
 
   createTradeOrder(order: TradeOrder): { success: boolean; } {

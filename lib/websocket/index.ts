@@ -1,4 +1,3 @@
-
 import { RealTimeDataClient } from "./client";
 export type { ClobApiKeyCreds } from "./model";
 export type { RealTimeDataClientArgs } from "./client";

@@ -1,30 +1,35 @@
 const logs = await Bun.file("./logs/app.log").text();
-const markets: string[] = [];
+let placed = 0;
+let matched = 0;
+
+// Track unique asset IDs for matched
+const matchedAssets = new Set<string>();
+
+// Regex to match any asset ID with 77 or more digits
+const assetIdPattern = /\b\d{40,}\b/;
+
+// Regex to extract asset ID from log line (handles asset: '123456...')
+function extractAssetId(line: string): string | null {
+    const match = line.match(/asset:\s*'(\d{40,})'/i);
+    return match ? match[1] : null;
+}
+
 for (const line of logs.split("\n")) {
-    // process each line
-    if (line.includes("too low")) {
-        const match = line.match(/'([^']*)'/);
-        if (match) {
-            console.log(match[1]); // text between single quotes
-            markets.push(match[1])
+    if (line.includes("[INF]")) {
+        if (line.includes("bitcoin")) {
+            if(line.includes("placed")) {
+                placed++;
+            }
+            if(line.includes("matched")) {
+                const assetId = extractAssetId(line);
+                if (assetId && assetIdPattern.test(assetId) && !matchedAssets.has(assetId)) {
+                    // Only count unique asset matches for similar asset IDs
+                    matchedAssets.add(assetId);
+                    matched++;
+                }
+            }
         }
     }
 }
 
-//STOP LOSS:
-
-const loss: string[] = [];
-for (const market of markets) {
-   for (const line of logs.split("\n")) {
-       if (line.includes("STOP LOSS")) {
-        if(line.includes(market)){
-           console.log(line)
-           loss.push(market);
-        }
-       }
-   }
-}
-
-// Remove duplicates from loss array
-const uniqueLoss = [...new Set(loss)];
-console.log("Unique STOP LOSS markets:", uniqueLoss);
+console.log({ placed, matched })

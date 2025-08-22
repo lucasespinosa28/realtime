@@ -1,6 +1,6 @@
 import { logger, storageOrder } from "./lib/storage/memory";
 import { postOrder } from "./lib/trading";
-import { boughtAssets, getOppositeAsset, processedConditionIds, type TradeData } from "./main";
+import { boughtAssets, processedConditionIds, type TradeData } from "./main";
 import { appLogger } from "./utils/logger";
 
 /**

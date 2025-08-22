@@ -52,7 +52,7 @@ function loadMarketData(): void {
 
     titles = new Map<string, string>();
     oppositeAsset = new Map<string, string>();
-    
+
     for (const token of tokens) {
         titles.set(token.token_id, token.title);
     }
@@ -90,13 +90,13 @@ const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
         appLogger.debug("No asks available for asset {asset}", { asset: tradeData.asset });
         return;
     }
-    
+
     const lastAsk = asks.reverse()[0]
     appLogger.debug("Last ask for asset {asset}: price={price}", {
         asset: tradeData.asset,
         price: lastAsk.price
     });
-    
+
     if (!lastBuy.get(tradeData.asset)) {
         if (Number(lastAsk.price) === 0.99) {
             appLogger.info("Found 0.99 ask price for {title} - placing immediate buy order", { title: tradeData.title });
@@ -195,7 +195,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         withinBuyWindow: TRADING_RULES.START_TIME < currentMinutes
     });
 
-    // await lastBuyAsk(asks, tradeData)
+    await lastBuyAsk(asks, tradeData)
     // 1. Always check if we have an existing order and update its status
     if (storageOrder.hasId(tradeData.asset)) {
         appLogger.debug("Found existing order for asset {asset} - checking status", { asset: tradeData.asset });
@@ -203,7 +203,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     } else {
         appLogger.debug("No existing order found for asset {asset}", { asset: tradeData.asset });
     }
-    
+
     const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
     if ((withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
         // Skip if already processed, claimed, or asset already bought
@@ -240,7 +240,6 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         });
 
         try {
-            // Asset is already marked as "processing" from the caller
             await placeBuyOrder(tradeData);
         } finally {
             // Always release the claim so future retries are possible if not processed

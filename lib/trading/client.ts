@@ -7,7 +7,7 @@ const address = CONSTANT.proxy;
 const signer = new Wallet(CONSTANT.key);
 
 const clobClient = new ClobClient(CONSTANT.host, 137, signer);
-export const creds = await clobClient.deriveApiKey();
+const creds = await clobClient.deriveApiKey();
 
 const polymarket = new ClobClient(CONSTANT.host, 137, signer, creds, 2, address);
 export default polymarket;

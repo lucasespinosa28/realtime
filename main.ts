@@ -1,11 +1,11 @@
 import { checkOrderStatus } from "./checkOrderStatus";
 import { storageOrder } from "./lib/storage/memory";
-import { postOrder } from "./lib/trading";
 import type { Market, MarketToken } from "./lib/trading/model";
 import { RealTimeDataClient, type Message } from "./lib/websocket";
 import type { Book, OrderBook } from "./lib/websocket/model";
 import { placeBuyOrder } from "./placeBuyOrder";
 import { crypto1hMarkets } from "./scripts/filterMarkerts";
+import { setupHourlyReload } from "./setupHourlyReload";
 import { appLogger, configureLogging } from "./utils/logger";
 
 
@@ -39,9 +39,9 @@ let markets: Market[] = [];
 let tokens: Token[] = [];
 let titles = new Map<string, string>();
 let oppositeAsset = new Map<string, string>();
-let client: RealTimeDataClient | null = null;
+export let client: RealTimeDataClient | null = null;
 
-function loadMarketData(): void {
+export function loadMarketData(): void {
     appLogger.info("Loading market data...");
 
     markets = crypto1hMarkets();
@@ -84,78 +84,75 @@ export function getOppositeAsset(assetId: string): string | undefined {
     return oppositeAsset.get(assetId);
 }
 
-const lastBuy = new Map();
-const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
-    if (!Array.isArray(asks) || asks.length === 0) {
-        appLogger.debug("No asks available for asset {asset}", { asset: tradeData.asset });
-        return;
-    }
+ const lastBuy = new Map();
+// const lastBuyAsk = async (asks: Book[], tradeData: TradeData) => {
+//     if (!Array.isArray(asks) || asks.length === 0) {
+//         appLogger.debug("No asks available for asset {asset}", { asset: tradeData.asset });
+//         return;
+//     }
 
-    const lastAsk = asks.reverse()[0]
-    appLogger.debug("Last ask for asset {asset}: price={price}", {
-        asset: tradeData.asset,
-        price: lastAsk.price
-    });
+//     const lastAsk = asks.reverse()[0]
+//     appLogger.debug("Last ask for asset {asset}: price={price}", {
+//         asset: tradeData.asset,
+//         price: lastAsk.price
+//     });
 
-    if (!lastBuy.get(tradeData.asset)) {
-        if (Number(lastAsk.price) === 0.99) {
-            appLogger.info("Found 0.99 ask price for {title} - placing immediate buy order", { title: tradeData.title });
-            console.log("Last Buy Ask:", lastAsk);
-            lastBuy.set(tradeData.asset, true);
-            const order = await postOrder(
-                tradeData.asset,
-                Number(lastAsk.price),
-                5,
-            );
-            if (order.success) {
-                // Track in memory to avoid future DB checks
-                boughtAssets.add(tradeData.asset);
-                // Mark this conditionId as processed
-                processedConditionIds.add(tradeData.conditionId);
-                // Update storageOrder with order details
-                storageOrder.add(tradeData.asset, {
-                    orderID: order.orderID,
-                    asset: tradeData.asset,
-                    status: order.status,
-                    conditionId: tradeData.conditionId
-                });
-                appLogger.info("Immediate buy order placed for {title} at price {price}, conditionId {conditionId}, orderID {orderID}", {
-                    title: tradeData.title,
-                    price: 0.99,
-                    conditionId: tradeData.conditionId,
-                    orderID: order.orderID
-                });
-            } else {
-                // Mark as failed
-                storageOrder.add(tradeData.asset, {
-                    orderID: "",
-                    asset: tradeData.asset,
-                    status: "failed",
-                    conditionId: tradeData.conditionId
-                });
-                appLogger.warn("Immediate buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
-            }
-        } else {
-            appLogger.debug("Ask price {price} not equal to 0.99 for {title} - skipping immediate buy", {
-                price: Number(lastAsk.price),
-                title: tradeData.title
-            });
-        }
-    } else {
-        appLogger.debug("Already processed immediate buy for asset {asset}", { asset: tradeData.asset });
-    }
-}
+//     if (!lastBuy.get(tradeData.asset)) {
+//         if (Number(lastAsk.price) === 0.99) {
+//             appLogger.info("Found 0.99 ask price for {title} - placing immediate buy order", { title: tradeData.title });
+//             console.log("Last Buy Ask:", lastAsk);
+//             lastBuy.set(tradeData.asset, true);
+//             const order = await postOrder(
+//                 tradeData.asset,
+//                 Number(lastAsk.price),
+//                 5,
+//             );
+//             if (order.success) {
+//                 // Track in memory to avoid future DB checks
+//                 boughtAssets.add(tradeData.asset);
+//                 // Mark this conditionId as processed
+//                 processedConditionIds.add(tradeData.conditionId);
+//                 // Update storageOrder with order details
+//                 storageOrder.add(tradeData.asset, {
+//                     orderID: order.orderID,
+//                     asset: tradeData.asset,
+//                     status: order.status,
+//                     conditionId: tradeData.conditionId
+//                 });
+//                 appLogger.info("Immediate buy order placed for {title} at price {price}, conditionId {conditionId}, orderID {orderID}", {
+//                     title: tradeData.title,
+//                     price: 0.99,
+//                     conditionId: tradeData.conditionId,
+//                     orderID: order.orderID
+//                 });
+//             } else {
+//                 // Mark as failed
+//                 storageOrder.add(tradeData.asset, {
+//                     orderID: "",
+//                     asset: tradeData.asset,
+//                     status: "failed",
+//                     conditionId: tradeData.conditionId
+//                 });
+//                 appLogger.warn("Immediate buy order failed for {title} asset {asset}", { title: tradeData.title, asset: tradeData.asset });
+//             }
+//         } else {
+//             appLogger.debug("Ask price {price} not equal to 0.99 for {title} - skipping immediate buy", {
+//                 price: Number(lastAsk.price),
+//                 title: tradeData.title
+//             });
+//         }
+//     } else {
+//         appLogger.debug("Already processed immediate buy for asset {asset}", { asset: tradeData.asset });
+//     }
+// }
 
 const lastBuyBid = (bids: Book[]) => {
     if (!Array.isArray(bids) || bids.length === 0) return null;
     return bids.reverse()[0]
 }
 
-/**
- * WebSocket event handlers
- */
-const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
-    const orderBook = message as unknown as OrderBook;
+async function handleMessage(_client: RealTimeDataClient, message: Message): Promise<void> {
+     const orderBook = message as unknown as OrderBook;
     const currentMinutes = new Date().getMinutes();
 
     lastBuy.set(orderBook.payload.asset_id, false);
@@ -256,6 +253,13 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     }
 }
 
+/**
+ * WebSocket event handlers
+ */
+const onMessage = async (_client: RealTimeDataClient, message: Message): Promise<void> => {
+   await handleMessage(_client, message);
+}
+
 
 const onStatusChange = (status: string) => {
     appLogger.info("WebSocket status changed: {status}", { status });
@@ -274,55 +278,6 @@ const onConnect = (wsClient: RealTimeDataClient): void => {
     });
     appLogger.info("Connected to Polymarket WebSocket and subscribed to trades");
 };
-
-/**
- * Reconnect WebSocket with fresh data
- */
-async function reconnectWithFreshData(): Promise<void> {
-    appLogger.info("Reconnecting with fresh market data...");
-
-    // Disconnect current client if exists
-    if (client) {
-        client.disconnect();
-        client = null;
-    }
-
-    // Clear processed sets to allow new processing
-    processedConditionIds.clear();
-    inFlightConditionIds.clear();
-    boughtAssets.clear();
-
-    // Reload market data
-    loadMarketData();
-
-    // Create new client and connect
-    client = new RealTimeDataClient({ onMessage, onConnect, onStatusChange });
-    client.connect();
-
-    appLogger.info("Reconnected with fresh data");
-}
-
-/**
- * Setup hourly reload at minute 00
- */
-function setupHourlyReload(): void {
-    const now = new Date();
-    const nextHour = new Date(now.getFullYear(), now.getMonth(), now.getDate(), now.getHours() + 1, 0, 0, 0);
-    const msUntilNextHour = nextHour.getTime() - now.getTime();
-
-    appLogger.info("Next reload scheduled at: {time}", { time: nextHour.toISOString() });
-
-    // Schedule first reload
-    setTimeout(async () => {
-        await reconnectWithFreshData();
-
-        // Then schedule every hour
-        setInterval(async () => {
-            await reconnectWithFreshData();
-        }, 60 * 60 * 1000); // 1 hour in milliseconds
-
-    }, msUntilNextHour);
-}
 
 /**
  * Application entry point

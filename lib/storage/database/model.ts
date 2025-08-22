@@ -79,3 +79,10 @@ export interface Tokens {
     price: number;
     winner: boolean;
 }
+
+export interface TradeOrder {
+    asset: string;
+    orderID: string;
+    status: string;
+    conditionId: string;
+}

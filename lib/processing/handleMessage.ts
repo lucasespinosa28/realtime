@@ -60,14 +60,25 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
 
 }
 
+function extractBaseTitle(fullTitle: string): string {
+    // Remove timestamp patterns like "- august 22, 5pm et", "- september 15, 2am et", etc.
+    // This regex matches: - [month] [day], [time][am/pm] et
+    const cleanTitle = fullTitle.replace(/\s*-\s*[a-zA-Z]+\s+\d+,\s*\d+[ap]m\s+et\s*$/i, '');
+    return formatTitle(cleanTitle);
+}
+
 
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
-    // Normalize the title before lookup
-    const normalizedTitle = formatTitle(tradeData.title);
-    const instruction = memoryDatabase.getInstructionByTitle(normalizedTitle);
+    // Use the extracted base title for lookup
+    const baseTitle = extractBaseTitle(tradeData.title);
+    const instruction = memoryDatabase.getInstructionByTitle(baseTitle);
+
     if (!instruction) {
-        appLogger.warn("No instruction found for title: {title} - skipping buy order", { title: tradeData.title });
+        appLogger.warn("No instruction found for title: {title} (base: {baseTitle}) - skipping buy order", {
+            title: tradeData.title,
+            baseTitle
+        });
         return;
     }
     const withinBuyWindow = instruction.minutes < currentMinutes;

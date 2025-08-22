@@ -39,8 +39,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
         const instruction = memoryDatabase.getInstructionByTitle(baseTitle);
 
         const price = instruction?.price || 0.8;
-
-
+        const size = instruction?.size || 5;
 
         appLogger.info("Calculated price for {title}: originalPrice={originalPrice} -> calculatedPrice={calculatedPrice}", {
             title: tradeData.title,
@@ -74,7 +73,7 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
         const order = await postOrder(
             tradeData.asset,
             price,
-            5,
+            size,
         );
         if (order.success) {
             // Track in memory to avoid future DB checks

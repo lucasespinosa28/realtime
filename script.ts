@@ -22,14 +22,19 @@ function tokensId(): string {
 
 const lastBuy = new Map();
 const lastBuyAsk = async (asks: Book[], id: string) => {
-    if (!Array.isArray(asks) || asks.length === 0) return;
-    const lastAsk = asks.reverse()[0]
-    if (lastBuy.get(id)) {
-        if (Number(lastAsk.price) === 0.99 || Number(lastAsk.price) === 0.98) {
-            console.log("Last Buy Ask:", lastAsk);
+
+    const currentMinutes = new Date().getMinutes();
+    const withinBuyWindow = 59 < currentMinutes;
+    if (withinBuyWindow) {
+        if (!Array.isArray(asks) || asks.length === 0) return;
+        const lastAsk = asks.reverse()[0]
+        if (!lastBuy.get(id)) {
+            if (Number(lastAsk.price) === 0.99 || Number(lastAsk.price) === 0.98) {
+                console.log("Last Buy Ask:", lastAsk);
+                lastBuy.set(id, true);
+            }
         }
     }
-   
 }
 
 /**
@@ -40,11 +45,8 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
     lastBuy.set(orderBook.payload.asset_id, false);
 
     const asks = orderBook.payload.asks;
-    const bids = orderBook.payload.bids;
-
-    console.log(await lastBuyAsk(asks, orderBook.payload.asset_id,))
-    console.log("Order Book asks:", asks);
-    console.log("Order Book bids:", bids.reverse());
+    // const bids = orderBook.payload.bids;
+    await lastBuyAsk(asks, orderBook.payload.asset_id)
 };
 
 //  message: {

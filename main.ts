@@ -243,7 +243,7 @@ async function handleTradeMessage(message: Message): Promise<void> {
         }
         const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
         const isBitcoin = tradeData.title.toLowerCase().includes("bitcoin") || (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false);
-        if ((isBitcoin && tradeData.price === 0.05) || (withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
+        if ((isBitcoin && tradeData.price === 0.05 && !withinBuyWindow) || (withinBuyWindow && tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD)) {
             // Skip if already processed, claimed, or asset already bought
             if (
                 processedConditionIds.has(tradeData.conditionId) ||

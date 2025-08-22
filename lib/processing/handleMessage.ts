@@ -10,6 +10,7 @@ import { titles } from "./marketData";
 import type { RealTimeDataClient, Message } from "../websocket";
 import { memoryDatabase } from "../../main";
 import type { TradeData } from "../storage/model";
+import { formatTitle } from "../../utils/parse";
 
 const TRADING_RULES = {
     START_TIME: 0,
@@ -62,7 +63,9 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
 
 async function maybePlaceBuyOrder(tradeData: TradeData) {
     const currentMinutes = new Date().getMinutes();
-    const instruction = memoryDatabase.getInstructionByTitle(tradeData.title);
+    // Normalize the title before lookup
+    const normalizedTitle = formatTitle(tradeData.title);
+    const instruction = memoryDatabase.getInstructionByTitle(normalizedTitle);
     if (!instruction) {
         appLogger.warn("No instruction found for title: {title} - skipping buy order", { title: tradeData.title });
         return;

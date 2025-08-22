@@ -41,10 +41,10 @@ export const priceSimulatedHandler = (tradeData: TradeData): number => {
       price = 0.2;
       break;
     case title.includes("bitcoin") && outcome === "up":
-      price = 0.1;
+      price = 0.05;
       break;
     case title.includes("bitcoin") && outcome === "down":
-      price = 0.7;
+      price = 0.05;
       break;
     case title.includes("ethereum") && outcome === "up":
       price = 0.5;

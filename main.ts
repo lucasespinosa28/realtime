@@ -190,28 +190,6 @@ async function executeBuyLogic(tradeData: TradeData): Promise<void> {
         storage.delete(tradeData.asset);
     }
 }
-
-/**
- * Simulate a buy order (no API call).
- */
-function simulateBuyOrder(tradeData: TradeData): void {
-    boughtAssets.add(tradeData.asset);
-    processedConditionIds.add(tradeData.conditionId);
-    storage.add(tradeData.asset, {
-        orderID: "SIMULATED",
-        asset: tradeData.asset,
-        outcome: tradeData.outcome,
-        status: "filled",
-        conditionId: tradeData.conditionId
-    });
-    appLogger.info("Simulated buy order placed for {title} at price {price} asset {outcome} conditionId {conditionId}", {
-        title: tradeData.title,
-        conditionId: tradeData.conditionId,
-        price: tradeData.price,
-        outcome: tradeData.outcome,
-    });
-}
-
 /**
  * Main message handler for trade events
  */
@@ -232,28 +210,6 @@ async function handleTradeMessage(message: Message): Promise<void> {
             side: message.payload.side,
             size: instruction.size
         };
-
-        // If this event is "bitcoin" and price is 0.05, simulate a buy and skip normal flow
-        const isBitcoinEvent =
-            (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false) ||
-            (tradeData.title?.toLowerCase().includes("bitcoin") ?? false);
-
-        if (isBitcoinEvent && tradeData.price === 0.05) {
-            if (
-                processedConditionIds.has(tradeData.conditionId) ||
-                inFlightConditionIds.has(tradeData.conditionId) ||
-                boughtAssets.has(tradeData.asset)
-            ) {
-                continue;
-            }
-            inFlightConditionIds.add(tradeData.conditionId);
-            try {
-                simulateBuyOrder(tradeData);
-            } finally {
-                inFlightConditionIds.delete(tradeData.conditionId);
-            }
-            continue;
-        }
 
         // Move jump check after tradeData init so simulation can run
         if (message.payload.eventSlug.includes(instruction.jump)) {
@@ -295,7 +251,9 @@ async function handleTradeMessage(message: Message): Promise<void> {
         }
         const withinBuyWindow = TRADING_RULES.START_TIME < currentMinutes;
         if (withinBuyWindow) {
-            if (tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
+            // Allow Bitcoin trades to pass if price is exactly 0.05, otherwise use the normal threshold
+            const isBitcoin = tradeData.title.toLowerCase().includes("bitcoin") || (message.payload.eventSlug?.toLowerCase().includes("bitcoin") ?? false);
+            if ((isBitcoin && tradeData.price === 0.05) || tradeData.price >= TRADING_RULES.BUY_PRICE_THRESHOLD) {
                 // Skip if already processed, claimed, or asset already bought
                 if (
                     processedConditionIds.has(tradeData.conditionId) ||

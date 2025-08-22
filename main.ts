@@ -3,12 +3,11 @@ import { RealTimeDataClient } from "./lib/websocket";
 import { setupHourlyReload } from "./lib/websocket/setupHourlyReload";
 import { loadMarketData } from "./lib/processing/marketData";
 import { onMessage, onConnect, onStatusChange } from "./lib/websocket/handlers";
-import { setClient } from "./lib/processing/state";
+import { setClient, reloadStateFromDatabase } from "./lib/processing/state";
 import { instructions } from "./config";
-import { DatabaseMemoryManager } from "./lib/storage";
+import { memoryDatabase } from "./lib/database";
 
 
-export const memoryDatabase = new DatabaseMemoryManager()
 /**
  * Application entry point
  */
@@ -21,6 +20,9 @@ async function main(): Promise<void> {
         appLogger.error("Failed to insert instructions");
     }
     appLogger.info("Starting Polymarket Realtime Trading Bot...");
+
+    // Reload processed state from database to prevent duplicate orders
+    reloadStateFromDatabase();
 
     // Load initial market data
     loadMarketData();

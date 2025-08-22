@@ -179,6 +179,32 @@ class DatabaseMemoryManager {
     return !!stmt.get(orderID);
   }
 
+  getAllTradeOrders(): TradeOrder[] {
+    const stmt = this.db.prepare(`SELECT * FROM trade_orders`);
+    type TradeOrderRow = {
+      id: string;
+      orderID: string;
+      status: string;
+      conditionId: string;
+      asset: string;
+      title: string;
+      price: number;
+      timestamp: number;
+    };
+    const rows = stmt.all() as TradeOrderRow[];
+    return rows.map(row => ({
+      orderID: row.orderID,
+      status: row.status,
+      tradeData: {
+        conditionId: row.conditionId,
+        asset: row.asset,
+        title: row.title,
+        price: row.price,
+        timestamp: row.timestamp
+      }
+    }));
+  }
+
   // UTILITY
   close(): void {
     this.db.close();

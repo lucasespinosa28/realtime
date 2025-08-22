@@ -8,7 +8,7 @@ import {
 } from "./state";
 import { titles } from "./marketData";
 import type { RealTimeDataClient, Message } from "../websocket";
-import { memoryDatabase } from "../../main";
+import { memoryDatabase } from "../database";
 import type { TradeData } from "../storage/model";
 import { formatTitle } from "../../utils/parse";
 
@@ -53,8 +53,6 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
     if (memoryDatabase.existTradeOrder(tradeData.asset)) {
         appLogger.debug("Found existing order for asset {title} {asset} - checking status", { asset: tradeData.asset, title: tradeData.title });
         await checkOrderStatus(tradeData);
-    } else {
-        appLogger.debug("No existing order found for asset {title} {asset}", { asset: tradeData.asset, title: tradeData.title });
     }
     await maybePlaceBuyOrder(tradeData);
 

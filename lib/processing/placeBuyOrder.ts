@@ -1,6 +1,6 @@
 import { boughtAssets, processedConditionIds } from "./state";
 import { postOrder } from "../trading";
-import { memoryDatabase } from "../../main";
+import { memoryDatabase } from "../database";
 import { appLogger } from "../../utils/logger";
 import type { TradeData } from "../storage/model";
 import { logger } from "../storage";
@@ -81,8 +81,8 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             boughtAssets.add(tradeData.asset);
             // Mark this conditionId as processed
             processedConditionIds.add(tradeData.conditionId);
-            // Update memoryDatabase with order details
-            memoryDatabase.updateTradeOrder({
+            // Save/update memoryDatabase with order details
+            memoryDatabase.createTradeOrder({
                 orderID: order.orderID,
                 status: order.status,
                 tradeData: tradeData,
@@ -96,8 +96,8 @@ export async function placeBuyOrder(tradeData: TradeData): Promise<boolean> {
             });
             return true;
         } else {
-            // Mark as failed
-            memoryDatabase.updateTradeOrder({
+            // Save failed order to database
+            memoryDatabase.createTradeOrder({
                 orderID: "",
                 tradeData: tradeData,
                 status: "failed",

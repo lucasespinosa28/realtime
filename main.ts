@@ -195,7 +195,7 @@ const onMessage = async (_client: RealTimeDataClient, message: Message): Promise
         withinBuyWindow: TRADING_RULES.START_TIME < currentMinutes
     });
 
-    await lastBuyAsk(asks, tradeData)
+    //await lastBuyAsk(asks, tradeData)
     // 1. Always check if we have an existing order and update its status
     if (storageOrder.hasId(tradeData.asset)) {
         appLogger.debug("Found existing order for asset {asset} - checking status", { asset: tradeData.asset });

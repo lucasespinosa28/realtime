@@ -79,7 +79,14 @@ async function maybePlaceBuyOrder(tradeData: TradeData) {
         conditionId: tradeData.conditionId,
         withinBuyWindow: instruction.minutes < currentMinutes
     });
-    if ((withinBuyWindow && tradeData.price >= instruction.price)) {
+
+    // Updated buy condition logic
+    const shouldBuy =
+        instruction.penny === 1
+            ? (withinBuyWindow && tradeData.price >= instruction.price)
+            : (withinBuyWindow && tradeData.price == instruction.price);
+
+    if (shouldBuy) {
         if (
             processedConditionIds.has(tradeData.conditionId) ||
             inFlightConditionIds.has(tradeData.conditionId) ||

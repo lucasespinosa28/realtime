@@ -35,7 +35,8 @@ class DatabaseMemoryManager {
            title TEXT,
            minutes INTEGER,
            price REAL,
-           size INTEGER
+           size INTEGER,
+           penny INTEGER
         )`
     );
     // Create TradeOrder table with its own autoincrement id
@@ -58,11 +59,11 @@ class DatabaseMemoryManager {
   insertInstruction(instructions: Instructions[]): { success: boolean; } {
     try {
       const stmt = this.db.prepare(
-        `INSERT INTO instructions (title, minutes, price, size) VALUES (?, ?, ?, ?)`
+        `INSERT INTO instructions (title, minutes, price, size, penny) VALUES (?, ?, ?, ?, ?)`
       );
 
       for (const instruction of instructions) {
-        stmt.run(instruction.title, instruction.minutes, instruction.price, instruction.size);
+        stmt.run(instruction.title, instruction.minutes, instruction.price, instruction.size, instruction.penny);
       }
 
       dbLogger.info("Instructions inserted successfully");

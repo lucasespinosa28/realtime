@@ -3,4 +3,5 @@ export interface Instructions  {
    minutes:number;
    price:number;
    size:number;
+   penny:number;
 }

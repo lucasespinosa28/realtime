@@ -27,11 +27,11 @@ export async function checkOrderStatus(tradeData: TradeData): Promise<void> {
 
     const orderId = storedOrder?.orderID;
     if (!orderId) {
-        appLogger.warn("No orderID found for asset {title} {asset} with status {status} - cannot check status", {
-            title: storedOrder?.tradeData.title,
-            asset: storedOrder?.tradeData.asset,
-            status: storedOrder?.status
-        });
+        // appLogger.warn("No orderID found for asset {title} {asset} with status {status} - cannot check status", {
+        //     title: storedOrder?.tradeData.title,
+        //     asset: storedOrder?.tradeData.asset,
+        //     status: storedOrder?.status
+        // });
         return;
     }
 

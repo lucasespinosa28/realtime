@@ -23,6 +23,9 @@ export class OrderBookDatabase {
     }
 
     private initialize() {
+        // Enable Write-Ahead Logging for better concurrency
+    this.db.run("PRAGMA journal_mode=WAL;");
+
         this.db.run(`
       CREATE TABLE IF NOT EXISTS payloads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,

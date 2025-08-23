@@ -9,13 +9,13 @@ const instructions: Instructions[] = [
         size: 10,
         penny: 1,
     },
-    // {
-    //     title: "Bitcoin Up Or Down",  // Changed "or" to "Or"
-    //     minutes: 0,
-    //     price: 0.05,
-    //     size: 10,
-    //     penny: 0,
-    // },
+    {
+        title: "Bitcoin Up Or Down",  // Changed "or" to "Or"
+        minutes: 0,
+        price: 0.05,
+        size: 10,
+        penny: 0,
+    },
     {
         title: "Ethereum Up Or Down",  // Changed "or" to "Or"
         minutes: 0,

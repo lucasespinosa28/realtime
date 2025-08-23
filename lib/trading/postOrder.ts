@@ -24,7 +24,7 @@ const postOrder = async (asset: string, price: number, size: number): Promise<Or
     );
     return order;
   } catch (error) {
-    polymarketAPILogger.error("Error placing order for {title}:{tokenID}: {error}", {
+    polymarketAPILogger.error("Error placing order for {asset}: {error}", {
       asset,
       error: error instanceof Error ? error.message : String(error)
     });

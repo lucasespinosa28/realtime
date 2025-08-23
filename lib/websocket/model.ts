@@ -44,22 +44,23 @@ export interface SubscriptionMessage {
 
 export interface Message {
     connection_id: string;
-    payload: {
-        asks: Book[];
-        asset_id: string;
-        bids: Book[];
-        hash: string;
-        market: string;
-        min_order_size: string;
-        neg_risk: boolean;
-        tick_size: string;
-        timestamp: string;
-    }
+    payload: Payload;
     timestamp: number;
     topic: string;
     type: string;
 }
 
+export interface Payload {
+    asks: Book[];
+    asset_id: string;
+    bids: Book[];
+    hash: string;
+    market: string;
+    min_order_size: string;
+    neg_risk: boolean;
+    tick_size: string;
+    timestamp: string;
+}
 
 export interface Book {
     price: string;

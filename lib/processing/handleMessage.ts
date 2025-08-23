@@ -8,7 +8,7 @@ import {
 } from "./state";
 import { titles } from "./marketData";
 import type { RealTimeDataClient, Message } from "../websocket";
-import { memoryDatabase } from "../database";
+import { memoryDatabase, orderBookDatabase } from "../storage/database";
 import type { TradeData } from "../storage/model";
 import { formatTitle } from "../../utils/parse";
 
@@ -21,7 +21,7 @@ export async function handleMessage(_client: RealTimeDataClient, message: Messag
     const asks = message.payload.asks;
     const bids = message.payload.bids;
 
-
+    orderBookDatabase.create(message.payload);
 
     const title = titles.get(message.payload.asset_id);
     if (!title) {

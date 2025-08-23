@@ -1,6 +1,6 @@
 import { boughtAssets, processedConditionIds } from "./state";
 import { postOrder } from "../trading";
-import { memoryDatabase } from "../database";
+import { memoryDatabase } from "../storage/database";
 import { appLogger } from "../../utils/logger";
 import type { TradeData } from "../storage/model";
 import { logger } from "../storage";

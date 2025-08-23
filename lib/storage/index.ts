@@ -355,4 +355,5 @@ class DatabaseManager {
   }
 }
 
+
 export { logger, DatabaseMemoryManager, DatabaseManager };

@@ -1,4 +1,4 @@
-import { memoryDatabase } from "../database";
+import { memoryDatabase } from "../storage/database";
 import { appLogger } from "../../utils/logger";
 import type { TradeData } from "../storage/model";
 import { polymarket } from "../trading";

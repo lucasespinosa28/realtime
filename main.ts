@@ -5,7 +5,7 @@ import { loadMarketData } from "./lib/processing/marketData";
 import { onMessage, onConnect, onStatusChange } from "./lib/websocket/handlers";
 import { setClient, reloadStateFromDatabase } from "./lib/processing/state";
 import { instructions } from "./config";
-import { memoryDatabase } from "./lib/database";
+import { memoryDatabase } from "./lib/storage/database";
 
 
 /**

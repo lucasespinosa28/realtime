@@ -1,5 +1,5 @@
 import type { RealTimeDataClient } from "../websocket";
-import { memoryDatabase } from "../database";
+import { memoryDatabase } from "../storage/database";
 import { appLogger } from "../../utils/logger";
 
 export const boughtAssets = new Set<string>();
